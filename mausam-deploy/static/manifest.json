@@ -1,0 +1,16 @@
+{
+  "name": "Mausam — Next-Gen Weather & Hazard",
+  "short_name": "Mausam",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1115",
+  "theme_color": "#3b7fe0",
+  "description": "Hyperlocal real-time weather, NAQI air quality, convective storm alerts, and agrometeorology intelligence.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

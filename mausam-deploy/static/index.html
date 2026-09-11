@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#3b7fe0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Mausam — Next-Gen Weather & Hazard Intelligence</title>
+  
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="mode-showcase">
+
+  <!-- Top Bar for Web View & Showcase Controls -->
+  <header class="app-control-bar">
+    <div class="brand-group">
+      <div class="brand-icon">🌩️</div>
+      <div class="brand-text">
+        <span class="brand-title">Mausam <span class="brand-ver">v2.0</span></span>
+        <span class="brand-sub">Hyperlocal Weather & Convective Hazard Intelligence</span>
+      </div>
+      <div class="stream-badge" id="streamBadge">
+        <span class="pulse-dot"></span>
+        <span id="streamStatus">LIVE FEED</span>
+      </div>
+    </div>
+
+    <div class="view-controls">
+      <button class="view-btn active" data-view="showcase" id="btnViewShowcase" title="Show all 5 mobile screens side-by-side matching the reference design">
+        <span>📱</span> 5-Screen Showcase
+      </button>
+      <button class="view-btn active" id="btnFitShowcase" onclick="toggleShowcaseFit()" title="Toggle auto-fit to screen so all 5 screens are visible without scroll">
+        <span>🔍</span> Fit 5 Screens
+      </button>
+      <button class="view-btn" data-view="single" id="btnViewSingle" title="Interactive single mobile app view">
+        <span>📲</span> Mobile App
+      </button>
+      <button class="view-btn" data-view="desktop" id="btnViewDesktop" title="Full-width responsive desktop portal">
+        <span>💻</span> Desktop Portal
+      </button>
+    </div>
+
+
+    <div class="action-controls">
+      <select id="locationSelect" class="loc-dropdown" title="Select location">
+        <option value="Agara, Bengaluru, India" data-lat="12.933" data-lon="77.625" selected>📍 Agara, Bengaluru</option>
+        <option value="Manduri, Bengaluru Rural" data-lat="13.125" data-lon="77.682">🌾 Manduri, Rural</option>
+        <option value="Whitefield, Bengaluru" data-lat="12.969" data-lon="77.750">🏢 Whitefield Tech Hub</option>
+        <option value="Electronic City, Bengaluru" data-lat="12.845" data-lon="77.660">🚗 Electronic City</option>
+        <option value="New Delhi, India" data-lat="28.6139" data-lon="77.2090">🏛️ New Delhi NCR</option>
+        <option value="Mumbai, Maharashtra" data-lat="19.076" data-lon="72.877">🌊 Mumbai Coastal</option>
+      </select>
+
+      <button class="action-btn storm-btn" id="btnToggleStorm" title="Toggle Red Convective Storm Alert Simulation">
+        <span>⚡</span> <span id="stormBtnText">Storm: Active</span>
+      </button>
+
+      <button class="action-btn onboard-btn" id="btnOpenOnboarding" title="Open User Onboarding Modal">
+        <span>✨</span> Onboarding
+      </button>
+
+      <button class="action-btn live-sync-btn" id="btnSyncLive" title="Fetch live Open-Meteo weather for current coordinates">
+        <span>🔄</span> Sync Live
+      </button>
+
+      <button class="action-btn auth-btn" id="btnOpenAuth" onclick="openModal('modalAuth')" title="User Login & Database Account Manager">
+        <span>👤</span> <span id="topBarUserName">Vikram S.</span>
+      </button>
+    </div>
+  </header>
+
+
+  <!-- Global Alert Toast Notification -->
+  <div id="globalToast" class="global-toast hidden"></div>
+
+  <!-- MAIN CONTAINER -->
+  <main id="mainContainer" class="main-viewport">
+
+    <!-- ======================================================== -->
+    <!-- VIEW 1: 5-SCREEN SIDE-BY-SIDE SHOWCASE (Matches User Photo) -->
+    <!-- ======================================================== -->
+    <div id="showcaseView" class="showcase-container">
+      <div class="showcase-header-note">
+        <h2>Interactive Multi-Screen Architecture</h2>
+        <p>Live synchronized view of all 5 core modules: Home, Convective Alerts, Personalization Onboarding, Agrometeorology, and Profile Manager.</p>
+      </div>
+
+      <div class="phones-strip">
+
+        <!-- PHONE 1: HOME -->
+        <div class="phone-wrapper" id="phone1">
+          <div class="phone-label">1. HOME SCREEN</div>
+          <div class="phone-chassis">
+            <div class="dynamic-island">
+              <div class="island-camera"></div>
+              <div class="island-sensor"></div>
+            </div>
+            <div class="status-bar">
+              <span class="sb-time">10:17 PM</span>
+              <div class="sb-icons">
+                <span class="sb-cell">📶</span>
+                <span class="sb-wifi">􀙇</span>
+                <span class="sb-bat">🔋</span>
+              </div>
+            </div>
+
+            <!-- Home Screen Content -->
+            <div class="phone-screen screen-home">
+              <!-- NAQI Card -->
+              <div class="naqi-box">
+                <div class="naqi-header-row">
+                  <span class="naqi-lbl">NAQI</span>
+                </div>
+                <div class="naqi-main-row">
+                  <span class="naqi-big" id="homeNaqiVal">68</span>
+                  <div class="naqi-scale-container">
+                    <div class="naqi-scale-track">
+                      <div class="naqi-pointer" id="homeNaqiPointer" style="left: 36%;">▼</div>
+                      <div class="naqi-bar">
+                        <span class="bar-seg seg-good"></span>
+                        <span class="bar-seg seg-sat"></span>
+                        <span class="bar-seg seg-mod"></span>
+                        <span class="bar-seg seg-poor"></span>
+                      </div>
+                    </div>
+                    <div class="naqi-labels">
+                      <span>Good</span>
+                      <span>Moderate</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="naqi-badge-row">
+                  <span class="naqi-badge badge-sat" id="homeNaqiBadge">Satisfactory</span>
+                </div>
+              </div>
+
+              <!-- Weather Hero -->
+              <div class="weather-hero">
+                <div class="weather-temp-row">
+                  <span class="temp-big" id="homeTemp">29°C</span>
+                  <div class="weather-art">
+                    <span class="art-sun">☀️</span>
+                    <span class="art-cloud">⛅</span>
+                  </div>
+                </div>
+                <div class="weather-loc-row">
+                  <span class="weather-loc-text" id="homeLoc">Agara, Bengaluru, India</span>
+                </div>
+              </div>
+
+              <!-- 2x2 Quick Widgets Grid -->
+              <div class="widgets-grid">
+                <!-- Health Metrics -->
+                <div class="widget-card card-health" onclick="showHealthDetails()">
+                  <div class="card-head">Health Metrics</div>
+                  <div class="metric-row">
+                    <span class="metric-ico sun-ico">☀️</span>
+                    <div class="metric-data">
+                      <div class="m-title">UV Index</div>
+                      <div class="m-val val-uv" id="homeUv">5, Moderate</div>
+                    </div>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-ico drop-ico">💧</span>
+                    <div class="metric-data">
+                      <div class="m-title">Humidity</div>
+                      <div class="m-val" id="homeHumidity">72%</div>
+                    </div>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-ico check-ico">🟢</span>
+                    <div class="metric-data">
+                      <div class="m-title">Pollen Level</div>
+                      <div class="m-val val-pollen" id="homePollen">Low</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Daily Activity -->
+                <div class="widget-card card-activity" onclick="showWorkoutDetails()">
+                  <div class="card-head with-chev">Daily Activity <span class="chev">›</span></div>
+                  <div class="speedo-container">
+                    <svg class="speedo-svg" viewBox="0 0 100 56">
+                      <defs>
+                        <linearGradient id="speedoGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stop-color="#3b7fe0"/>
+                          <stop offset="60%" stop-color="#3fae6a"/>
+                          <stop offset="100%" stop-color="#2fae63"/>
+                        </linearGradient>
+                      </defs>
+                      <path class="speedo-track" d="M 14 48 A 36 36 0 0 1 86 48" fill="none" stroke="#e8edf5" stroke-width="7" stroke-linecap="round"/>
+                      <path class="speedo-fill" id="homeSpeedoFill" d="M 14 48 A 36 36 0 0 1 86 48" fill="none" stroke="url(#speedoGrad)" stroke-width="7" stroke-linecap="round" stroke-dasharray="113.1" stroke-dashoffset="69"/>
+                    </svg>
+                    <div class="speedo-runner">🏃</div>
+                  </div>
+                  <div class="activity-score-wrap">
+                    <span class="activity-title">Optimal Window</span>
+                    <span class="activity-score" id="homeActivityScore">8.2/10</span>
+                  </div>
+                  <div class="activity-best-time" id="homeBestTime">Best time for run: 06:15 AM</div>
+                </div>
+
+                <!-- Commute Visibility -->
+                <div class="widget-card card-commute" onclick="showCommuteDetails()">
+                  <div class="card-head">Commute Visibility</div>
+                  <div class="commute-art">
+                    <div class="fog-layers">
+                      <span class="fog-line f1"></span>
+                      <span class="fog-line f2"></span>
+                    </div>
+                    <div class="car-body">
+                      <div class="car-roof"></div>
+                      <div class="car-cabin"></div>
+                      <div class="car-beams">
+                        <span class="beam b-left"></span>
+                        <span class="beam b-right"></span>
+                      </div>
+                      <div class="car-lights">
+                        <span class="light"></span>
+                        <span class="light"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="commute-status" id="homeVisibility">Visibility: 4.8 km (Good)</div>
+                </div>
+
+                <!-- Precipitation Nowcast -->
+                <div class="widget-card card-nowcast" onclick="showNowcastDetails()">
+                  <div class="card-head">Precipitation Nowcast <span class="sub-head">(Minute-by-Minute)</span></div>
+                  <div class="nowcast-radar-thumb">
+                    <div class="radar-scan-circle">
+                      <div class="radar-sweep-hand"></div>
+                      <div class="radar-rain-blob r1"></div>
+                      <div class="radar-rain-blob r2"></div>
+                      <div class="radar-loc-dot"></div>
+                    </div>
+                  </div>
+                  <div class="nowcast-status" id="homeNowcast">No rain expected for 25 min</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tabbar 1: Home active -->
+            <nav class="phone-tabbar">
+              <button class="ptab active t-blue"><span class="ti">🏠</span><span class="tl">Home</span></button>
+              <button class="ptab" onclick="switchSingleScreen('alerts')"><span class="ti">🔔</span><span class="tl">Alerts</span></button>
+              <button class="ptab" onclick="switchSingleScreen('agri')"><span class="ti">🌿</span><span class="tl">Agri</span></button>
+              <button class="ptab" onclick="switchSingleScreen('profile')"><span class="ti">👤</span><span class="tl">Profile</span></button>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+
+        <!-- PHONE 2: ALERTS -->
+        <div class="phone-wrapper" id="phone2">
+          <div class="phone-label">2. ALERTS SCREEN</div>
+          <div class="phone-chassis">
+            <div class="dynamic-island">
+              <div class="island-camera"></div>
+              <div class="island-sensor"></div>
+            </div>
+            <div class="status-bar">
+              <span class="sb-time">10:17 PM</span>
+              <div class="sb-icons">
+                <span class="sb-cell">📶</span>
+                <span class="sb-wifi">􀙇</span>
+                <span class="sb-bat">🔋</span>
+              </div>
+            </div>
+
+            <!-- Alerts Screen Content -->
+            <div class="phone-screen screen-alerts">
+              <div class="screen-title-bar st-red">
+                <span>ALERTS</span>
+              </div>
+
+              <!-- Severe Warning Banner -->
+              <div class="alert-banner-red" onclick="expandStormAdvisory()">
+                <div class="banner-warn-ico">⚠️</div>
+                <div class="banner-text-wrap">
+                  <div class="bw-title" id="alertsWarningTitle">WARNING: RED CONVECTIVE STORM</div>
+                </div>
+                <div class="banner-chev">›</div>
+              </div>
+
+              <!-- Interactive Storm Map Container -->
+              <div class="map-card-container">
+                <div id="alertsMapLeaflet" class="radar-map-view"></div>
+                <div class="map-recenter-btn" onclick="recenterAlertsMap()" title="Recenter on Bengaluru Radar">
+                  <span class="target-ico">⌖</span>
+                </div>
+                <div class="map-brand-tag">mapbox</div>
+              </div>
+
+              <!-- Live Hazard Cards -->
+              <div class="alerts-feed">
+                <!-- Lightning Proximity -->
+                <div class="hazard-item item-lightning" onclick="showLightningAlertInfo()">
+                  <div class="hz-icon hz-yellow">⚡</div>
+                  <div class="hz-body">
+                    <div class="hz-name">Lightning Proximity</div>
+                    <div class="hz-val red-text" id="alertsLightningTime">6 mins</div>
+                  </div>
+                </div>
+
+                <!-- Waterlogging Risk -->
+                <div class="hazard-item item-flood" onclick="showFloodDetails()">
+                  <div class="hz-icon hz-red-drops">🩸</div>
+                  <div class="hz-body">
+                    <div class="hz-name">Waterlogging Risk</div>
+                    <div class="hz-val red-text" id="alertsWaterlogging">Active (Underpass 1)</div>
+                  </div>
+                </div>
+
+                <!-- Seek Shelter -->
+                <div class="hazard-item item-shelter" onclick="showShelterAdvisory()">
+                  <div class="hz-icon hz-red-house">🏠</div>
+                  <div class="hz-body">
+                    <div class="hz-name">Seek Shelter!</div>
+                    <div class="hz-val red-text bold-upper" id="alertsShelter">Immediate!</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tabbar 2: Alerts active -->
+            <nav class="phone-tabbar">
+              <button class="ptab" onclick="switchSingleScreen('home')"><span class="ti">🏠</span><span class="tl">Home</span></button>
+              <button class="ptab active t-red"><span class="ti">🔔</span><span class="tl">Alerts</span></button>
+              <button class="ptab" onclick="switchSingleScreen('agri')"><span class="ti">🌿</span><span class="tl">Agri</span></button>
+              <button class="ptab" onclick="switchSingleScreen('profile')"><span class="ti">👤</span><span class="tl">Profile</span></button>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+
+        <!-- PHONE 3: ONBOARDING / PERSONA SETUP -->
+        <div class="phone-wrapper" id="phone3">
+          <div class="phone-label">3. USER ONBOARDING</div>
+          <div class="phone-chassis">
+            <div class="dynamic-island">
+              <div class="island-camera"></div>
+              <div class="island-sensor"></div>
+            </div>
+            <div class="status-bar">
+              <span class="sb-time">10:17 PM</span>
+              <div class="sb-icons">
+                <span class="sb-cell">📶</span>
+                <span class="sb-wifi">􀙇</span>
+                <span class="sb-bat">🔋</span>
+              </div>
+            </div>
+
+            <!-- Onboarding Screen Content -->
+            <div class="phone-screen screen-onboard">
+              <div class="screen-title-bar st-blue-soft">
+                <span>NAQI</span>
+              </div>
+
+              <!-- Floating Onboarding Sheet -->
+              <div class="onboard-sheet">
+                <h3 class="onboard-title">USER ONBOARDING</h3>
+                <p class="onboard-desc">
+                  WELCOME! Set up your personalized experience by choosing your favorite personas and features. Your app will tailor itself to your choices. Don't worry, you can always change these settings later in your Profile section. (Persona Manager can be toggled there anytime).
+                </p>
+
+                <!-- Persona Grid Selection -->
+                <div class="onboard-grid">
+                  <!-- Health-Conscious -->
+                  <div class="onboard-card" onclick="toggleOnboardPersona('HEALTH')">
+                    <div class="ob-ico wind-ico">💨</div>
+                    <div class="ob-info">
+                      <div class="ob-name">Health-Conscious</div>
+                      <div class="ob-sub">(Pollen, intensity and Scale/vet)</div>
+                    </div>
+                    <div class="ob-toggle toggle-on" id="obToggle_HEALTH"><span class="t-knob"></span></div>
+                  </div>
+
+                  <!-- Outdoor Fitness -->
+                  <div class="onboard-card" onclick="toggleOnboardPersona('FITNESS')">
+                    <div class="ob-ico fit-ico">💧🌡️</div>
+                    <div class="ob-info">
+                      <div class="ob-name">Outdoor Fitness</div>
+                      <div class="ob-sub">(Run Planning and sensor/sensor)</div>
+                    </div>
+                    <div class="ob-toggle toggle-on" id="obToggle_FITNESS"><span class="t-knob"></span></div>
+                  </div>
+
+                  <!-- Sea Conditions -->
+                  <div class="onboard-card" onclick="toggleOnboardPersona('COASTAL')">
+                    <div class="ob-ico sea-ico">🛟</div>
+                    <div class="ob-info">
+                      <div class="ob-name">Sea Conditions</div>
+                      <div class="ob-sub">(Tide, wave height, buoy, wave and buoy)</div>
+                    </div>
+                    <div class="ob-toggle toggle-on" id="obToggle_COASTAL"><span class="t-knob"></span></div>
+                  </div>
+
+                  <!-- Flight Alerts -->
+                  <div class="onboard-card" onclick="toggleOnboardPersona('TRAVELER')">
+                    <div class="ob-ico plane-ico">✈️⚠️</div>
+                    <div class="ob-info">
+                      <div class="ob-name">Flight Alerts</div>
+                      <div class="ob-sub">(Severe weather, cancel)</div>
+                    </div>
+                    <div class="ob-toggle toggle-on" id="obToggle_TRAVELER"><span class="t-knob"></span></div>
+                  </div>
+                </div>
+
+                <!-- CTA Button -->
+                <button class="onboard-cta-btn" onclick="completeOnboarding()">
+                  START YOUR PERSONALIZED JOURNEY
+                </button>
+              </div>
+            </div>
+
+            <!-- Tabbar 3 -->
+            <nav class="phone-tabbar">
+              <button class="ptab active t-blue"><span class="ti">🏠</span><span class="tl">Home</span></button>
+              <button class="ptab" onclick="switchSingleScreen('alerts')"><span class="ti">🔔</span><span class="tl">Alerts</span></button>
+              <button class="ptab" onclick="switchSingleScreen('agri')"><span class="ti">🌿</span><span class="tl">Agri</span></button>
+              <button class="ptab" onclick="switchSingleScreen('profile')"><span class="ti">👤</span><span class="tl">Profile</span></button>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+
+        <!-- PHONE 4: AGRI (Agrometeorology) -->
+        <div class="phone-wrapper" id="phone4">
+          <div class="phone-label">4. AGROMETEOROLOGY</div>
+          <div class="phone-chassis">
+            <div class="dynamic-island">
+              <div class="island-camera"></div>
+              <div class="island-sensor"></div>
+            </div>
+            <div class="status-bar">
+              <span class="sb-time">10:17 PM</span>
+              <div class="sb-icons">
+                <span class="sb-cell">📶</span>
+                <span class="sb-wifi">􀙇</span>
+                <span class="sb-bat">🔋</span>
+              </div>
+            </div>
+
+            <!-- Agri Screen Content -->
+            <div class="phone-screen screen-agri">
+              <div class="screen-title-bar st-green">
+                <span>AGRI</span>
+              </div>
+
+              <!-- Location Chip -->
+              <div class="agri-loc-chip" onclick="switchAgriLocation()">
+                <span class="chip-pin">📍</span>
+                <div class="chip-text">
+                  <div class="chip-main" id="agriLocMain">Manduri</div>
+                  <div class="chip-sub" id="agriLocSub">Bengaluru Rural</div>
+                </div>
+                <span class="chip-chev">›</span>
+              </div>
+
+              <!-- Agrometeorology Widget -->
+              <div class="agri-card card-agromet">
+                <div class="agri-head-row">
+                  <div>
+                    <div class="agri-title">Agrometeorology widget</div>
+                    <div class="agri-sub">Soil moisture, irrigation heat maps</div>
+                  </div>
+                </div>
+
+                <!-- Thermal Heatmap Image with Expand Button -->
+                <div class="heatmap-frame" onclick="expandHeatmapModal()">
+                  <img src="/agri_soil_heatmap.jpg" alt="NDVI Soil Moisture Thermal Heatmap" class="heatmap-img">
+                  <button class="expand-ico-btn" title="Expand Full NDVI Heatmap">⤢</button>
+                </div>
+
+                <div class="agri-calc-foot">
+                  Next Spraying Window (FAO-56 Penman-Monteith calculated)
+                </div>
+              </div>
+
+              <!-- Pesticide Forecast Card -->
+              <div class="agri-card card-pesticide" onclick="showPesticideDetails()">
+                <div class="card-head with-chev">Pesticide Forecast <span class="chev">›</span></div>
+                <div class="pest-chart-wrap">
+                  <div class="pest-y-axis">
+                    <span>High</span>
+                    <span>Med</span>
+                    <span>Low</span>
+                  </div>
+                  <div class="pest-svg-area">
+                    <svg class="pest-chart-svg" viewBox="0 0 160 70">
+                      <!-- Grid lines -->
+                      <line x1="0" y1="10" x2="160" y2="10" stroke="#f0f3f6" stroke-width="1"/>
+                      <line x1="0" y1="35" x2="160" y2="35" stroke="#f0f3f6" stroke-width="1"/>
+                      <line x1="0" y1="60" x2="160" y2="60" stroke="#f0f3f6" stroke-width="1"/>
+                      <!-- Area fill -->
+                      <path d="M 15 58 C 45 52, 70 18, 95 18 C 120 18, 135 55, 155 58 L 155 68 L 15 68 Z" fill="rgba(63, 174, 106, 0.22)"/>
+                      <!-- Risk Curve -->
+                      <path d="M 15 58 C 45 52, 70 18, 95 18 C 120 18, 135 55, 155 58" fill="none" stroke="#2fae57" stroke-width="3" stroke-linecap="round"/>
+                      <!-- Apex Dot -->
+                      <circle cx="95" cy="18" r="4" fill="#2fae57"/>
+                    </svg>
+                    <div class="pest-x-axis">
+                      <span>Thu</span>
+                      <span>Fri</span>
+                      <span>Sat</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="pest-conf-text">Pest Confidence Level (90%)</div>
+              </div>
+
+              <!-- Quick Agri Action Items -->
+              <div class="agri-action-list">
+                <!-- Pesticide Application -->
+                <div class="agri-action-item" onclick="showSprayingDetails()">
+                  <div class="act-ico green-leaf">🌿</div>
+                  <div class="act-body">
+                    <div class="act-name">Pesticide Application</div>
+                    <div class="act-status green-text">Optimal Window</div>
+                  </div>
+                  <span class="act-chev">›</span>
+                </div>
+
+                <!-- Frost Risk -->
+                <div class="agri-action-item" onclick="showFrostDetails()">
+                  <div class="act-ico blue-snow">❄️</div>
+                  <div class="act-body">
+                    <div class="act-name">Frost Risk: <span class="green-text">Low</span></div>
+                  </div>
+                  <span class="act-chev">›</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tabbar 4: Agri active -->
+            <nav class="phone-tabbar">
+              <button class="ptab" onclick="switchSingleScreen('home')"><span class="ti">🏠</span><span class="tl">Home</span></button>
+              <button class="ptab" onclick="switchSingleScreen('alerts')"><span class="ti">🔔</span><span class="tl">Alerts</span></button>
+              <button class="ptab active t-green"><span class="ti">🌿</span><span class="tl">Agri</span></button>
+              <button class="ptab" onclick="switchSingleScreen('profile')"><span class="ti">👤</span><span class="tl">Profile</span></button>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+
+        <!-- PHONE 5: PROFILE -->
+        <div class="phone-wrapper" id="phone5">
+          <div class="phone-label">5. PROFILE & PERSONAS</div>
+          <div class="phone-chassis">
+            <div class="dynamic-island">
+              <div class="island-camera"></div>
+              <div class="island-sensor"></div>
+            </div>
+            <div class="status-bar">
+              <span class="sb-time">10:17 PM</span>
+              <div class="sb-icons">
+                <span class="sb-cell">📶</span>
+                <span class="sb-wifi">􀙇</span>
+                <span class="sb-bat">🔋</span>
+              </div>
+            </div>
+
+            <!-- Profile Screen Content -->
+            <div class="phone-screen screen-profile">
+              <div class="screen-title-bar st-purple">
+                <span>PROFILE</span>
+              </div>
+
+              <!-- User Profile Card -->
+              <div class="user-id-card" onclick="openModal('modalAuth')">
+                <div class="avatar-ring avatar-vector-wrap">
+                  <div class="avatar-vector" id="profAvatar">
+                    <span class="avatar-initials" id="profInitials">VS</span>
+                  </div>
+                </div>
+                <div class="user-meta">
+                  <div class="user-fullname" id="profName">Vikram S. <span class="chev-small">›</span></div>
+                  <div class="user-sublines">
+                    <div id="profLoc">• Bengaluru, KA</div>
+                    <div id="profPersona">• Persona: Farmer/Gardener & Health Conscious</div>
+                  </div>
+                </div>
+              </div>
+
+
+              <!-- Persona Manager Section -->
+              <div class="section-divider-title">PERSONA MANAGER</div>
+              <div class="section-sub-desc">View and toggle configured context profiles</div>
+
+              <div class="profile-list-card">
+                <!-- Health-Conscious -->
+                <div class="pref-row">
+                  <div class="pref-ico bg-green-light">💚</div>
+                  <div class="pref-meta">
+                    <div class="pref-title">Health-Conscious</div>
+                    <div class="pref-sub" id="pSub_HEALTH">Active, Pollen Focus</div>
+                  </div>
+                  <div class="pref-toggle toggle-on" id="profToggle_HEALTH" onclick="togglePersonaKey('HEALTH', this)"><span class="t-knob"></span></div>
+                </div>
+
+                <!-- Outdoor Fitness -->
+                <div class="pref-row">
+                  <div class="pref-ico bg-gray-light">🏃</div>
+                  <div class="pref-meta">
+                    <div class="pref-title">Outdoor Fitness</div>
+                    <div class="pref-sub" id="pSub_FITNESS">Inactive</div>
+                  </div>
+                  <div class="pref-toggle toggle-off" id="profToggle_FITNESS" onclick="togglePersonaKey('FITNESS', this)"><span class="t-knob"></span></div>
+                </div>
+
+                <!-- Commute Corridor -->
+                <div class="pref-row">
+                  <div class="pref-ico bg-blue-light">🚗</div>
+                  <div class="pref-meta">
+                    <div class="pref-title">Commute Corridor</div>
+                    <div class="pref-sub" id="pSub_COMMUTER">Home-Work Route defined</div>
+                  </div>
+                  <div class="pref-toggle toggle-on" id="profToggle_COMMUTER" onclick="togglePersonaKey('COMMUTER', this)"><span class="t-knob"></span></div>
+                </div>
+
+                <!-- Agrimet -->
+                <div class="pref-row">
+                  <div class="pref-ico bg-green-light">🌾</div>
+                  <div class="pref-meta">
+                    <div class="pref-title">Agrimet</div>
+                    <div class="pref-sub" id="pSub_AGRIMET">Farm geo-fence set</div>
+                  </div>
+                  <div class="pref-toggle toggle-on" id="profToggle_AGRIMET" onclick="togglePersonaKey('AGRIMET', this)"><span class="t-knob"></span></div>
+                </div>
+              </div>
+
+              <!-- Calibration Section -->
+              <div class="section-divider-title">CALIBRATION</div>
+
+              <div class="profile-list-card">
+                <!-- Acoustic Rain Gauge -->
+                <div class="pref-row">
+                  <div class="pref-ico bg-purple-light">🎤</div>
+                  <div class="pref-meta">
+                    <div class="pref-title">Acoustic Rain Gauge</div>
+                    <div class="pref-sub" id="calMicText">(Microphone: Active)</div>
+                  </div>
+                  <div class="pref-toggle toggle-on" id="calToggle_mic" onclick="toggleAcousticRainGauge(this)"><span class="t-knob"></span></div>
+                </div>
+
+                <!-- Hydro-Routing Verification -->
+                <div class="pref-row with-action" onclick="openFloodReportingModal()">
+                  <div class="pref-ico bg-purple-light">📍</div>
+                  <div class="pref-meta">
+                    <div class="pref-title">Hydro-Routing Verification</div>
+                    <div class="pref-sub">(Report Flood Point)</div>
+                  </div>
+                  <span class="pref-chev">›</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tabbar 5: Profile active -->
+            <nav class="phone-tabbar">
+              <button class="ptab" onclick="switchSingleScreen('home')"><span class="ti">🏠</span><span class="tl">Home</span></button>
+              <button class="ptab" onclick="switchSingleScreen('alerts')"><span class="ti">🔔</span><span class="tl">Alerts</span></button>
+              <button class="ptab" onclick="switchSingleScreen('agri')"><span class="ti">🌿</span><span class="tl">Agri</span></button>
+              <button class="ptab active t-purple"><span class="ti">👤</span><span class="tl">Profile</span></button>
+            </nav>
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+
+      </div> <!-- /phones-strip -->
+    </div> <!-- /showcaseView -->
+
+    <!-- ======================================================== -->
+    <!-- VIEW 2: SINGLE INTERACTIVE MOBILE APP VIEW (GLITCH-FREE)  -->
+    <!-- ======================================================== -->
+    <div id="singleView" class="single-mobile-container hidden">
+      <div class="single-phone-wrapper">
+        <div class="phone-chassis">
+          <div class="dynamic-island">
+            <div class="island-camera"></div>
+            <div class="island-sensor"></div>
+          </div>
+          <div class="status-bar">
+            <span class="sb-time">10:17 PM</span>
+            <div class="sb-icons">
+              <span class="sb-cell">📶</span>
+              <span class="sb-wifi">􀙇</span>
+              <span class="sb-bat">🔋</span>
+            </div>
+          </div>
+
+          <!-- TAB 1: HOME -->
+          <div id="sTab_home" class="phone-screen screen-home">
+            <div class="naqi-box">
+              <div class="naqi-header-row"><span class="naqi-lbl">NAQI</span></div>
+              <div class="naqi-main-row">
+                <span class="naqi-big" id="sHomeNaqiVal">68</span>
+                <div class="naqi-scale-container">
+                  <div class="naqi-scale-track">
+                    <div class="naqi-pointer" id="sHomeNaqiPointer" style="left: 36%;">▼</div>
+                    <div class="naqi-bar">
+                      <span class="bar-seg seg-good"></span>
+                      <span class="bar-seg seg-sat"></span>
+                      <span class="bar-seg seg-mod"></span>
+                      <span class="bar-seg seg-poor"></span>
+                    </div>
+                  </div>
+                  <div class="naqi-labels"><span>Good</span><span>Moderate</span></div>
+                </div>
+              </div>
+              <div class="naqi-badge-row">
+                <span class="naqi-badge badge-sat" id="sHomeNaqiBadge">Satisfactory</span>
+              </div>
+            </div>
+
+            <div class="weather-hero">
+              <div class="weather-temp-row">
+                <span class="temp-big" id="sHomeTemp">29°C</span>
+                <div class="weather-art"><span class="art-sun">☀️</span><span class="art-cloud">⛅</span></div>
+              </div>
+              <div class="weather-loc-row">
+                <span class="weather-loc-text" id="sHomeLoc">Agara, Bengaluru, India</span>
+              </div>
+            </div>
+
+            <div class="widgets-grid">
+              <div class="widget-card card-health" onclick="showHealthDetails()">
+                <div class="card-head">Health Metrics</div>
+                <div class="metric-row"><span class="metric-ico sun-ico">☀️</span><div class="metric-data"><div class="m-title">UV Index</div><div class="m-val val-uv" id="sHomeUv">5, Moderate</div></div></div>
+                <div class="metric-row"><span class="metric-ico drop-ico">💧</span><div class="metric-data"><div class="m-title">Humidity</div><div class="m-val" id="sHomeHumidity">72%</div></div></div>
+                <div class="metric-row"><span class="metric-ico check-ico">🟢</span><div class="metric-data"><div class="m-title">Pollen Level</div><div class="m-val val-pollen" id="sHomePollen">Low</div></div></div>
+              </div>
+
+              <div class="widget-card card-activity" onclick="showWorkoutDetails()">
+                <div class="card-head with-chev">Daily Activity <span class="chev">›</span></div>
+                <div class="speedo-container">
+                  <svg class="speedo-svg" viewBox="0 0 100 56">
+                    <defs>
+                      <linearGradient id="speedoGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#3b7fe0"/>
+                        <stop offset="60%" stop-color="#3fae6a"/>
+                        <stop offset="100%" stop-color="#2fae63"/>
+                      </linearGradient>
+                    </defs>
+                    <path class="speedo-track" d="M 14 48 A 36 36 0 0 1 86 48" fill="none" stroke="#e6ecf5" stroke-width="7" stroke-linecap="round"/>
+                    <path class="speedo-fill" id="sHomeSpeedoFill" d="M 14 48 A 36 36 0 0 1 86 48" fill="none" stroke="url(#speedoGrad2)" stroke-width="7" stroke-linecap="round" stroke-dasharray="113.1" stroke-dashoffset="69"/>
+                  </svg>
+                  <div class="speedo-runner">🏃</div>
+                </div>
+                <div class="activity-score-wrap">
+                  <span class="activity-title">Optimal Window</span>
+                  <span class="activity-score" id="sHomeActivityScore">8.2/10</span>
+                </div>
+                <div class="activity-best-time" id="sHomeBestTime">Best time for run: 06:15 AM</div>
+              </div>
+
+              <div class="widget-card card-commute" onclick="showCommuteDetails()">
+                <div class="card-head">Commute Visibility</div>
+                <div class="commute-art">
+                  <div class="car-body">
+                    <div class="car-cabin"></div>
+                    <div class="car-beams"><span class="beam b-left"></span><span class="beam b-right"></span></div>
+                    <div class="car-lights"><span class="light"></span><span class="light"></span></div>
+                  </div>
+                </div>
+                <div class="commute-status" id="sHomeVisibility">Visibility: 4.8 km (Good)</div>
+              </div>
+
+              <div class="widget-card card-nowcast" onclick="showNowcastDetails()">
+                <div class="card-head">Precipitation Nowcast <span class="sub-head">(Minute-by-Minute)</span></div>
+                <div class="nowcast-radar-thumb">
+                  <div class="radar-scan-circle">
+                    <div class="radar-sweep-hand"></div>
+                    <div class="radar-rain-blob r1"></div>
+                    <div class="radar-rain-blob r2"></div>
+                    <div class="radar-loc-dot"></div>
+                  </div>
+                </div>
+                <div class="nowcast-status" id="sHomeNowcast">No rain expected for 25 min</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: ALERTS -->
+          <div id="sTab_alerts" class="phone-screen screen-alerts hidden">
+            <div class="screen-title-bar st-red"><span>ALERTS</span></div>
+            <div class="alert-banner-red" onclick="expandStormAdvisory()">
+              <div class="banner-warn-ico">⚠️</div>
+              <div class="banner-text-wrap">
+                <div class="bw-title" id="sAlertsWarningTitle">WARNING: RED CONVECTIVE STORM</div>
+              </div>
+              <div class="banner-chev">›</div>
+            </div>
+
+            <div class="map-card-container">
+              <div id="singleAlertsMapLeaflet" class="radar-map-view"></div>
+              <div class="map-recenter-btn" onclick="recenterSingleMap()" title="Recenter on Bengaluru Radar">
+                <span class="target-ico">⌖</span>
+              </div>
+              <div class="map-brand-tag">mapbox</div>
+            </div>
+
+            <div class="alerts-feed">
+              <div class="hazard-item item-lightning" onclick="showLightningAlertInfo()">
+                <div class="hz-icon hz-yellow">⚡</div>
+                <div class="hz-body">
+                  <div class="hz-name">Lightning Proximity</div>
+                  <div class="hz-val red-text" id="sAlertsLightningTime">6 mins</div>
+                </div>
+              </div>
+              <div class="hazard-item item-flood" onclick="showFloodDetails()">
+                <div class="hz-icon hz-red-drops">🩸</div>
+                <div class="hz-body">
+                  <div class="hz-name">Waterlogging Risk</div>
+                  <div class="hz-val red-text" id="sAlertsWaterlogging">Active (Underpass 1)</div>
+                </div>
+              </div>
+              <div class="hazard-item item-shelter" onclick="showShelterAdvisory()">
+                <div class="hz-icon hz-red-house">🏠</div>
+                <div class="hz-body">
+                  <div class="hz-name">Seek Shelter!</div>
+                  <div class="hz-val red-text bold-upper" id="sAlertsShelter">Immediate!</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: AGRI -->
+          <div id="sTab_agri" class="phone-screen screen-agri hidden">
+            <div class="screen-title-bar st-green"><span>AGRI</span></div>
+            <div class="agri-loc-chip" onclick="switchAgriLocation()">
+              <span class="chip-pin">📍</span>
+              <div class="chip-text">
+                <div class="chip-main" id="sAgriLocMain">Manduri</div>
+                <div class="chip-sub" id="sAgriLocSub">Bengaluru Rural</div>
+              </div>
+              <span class="chip-chev">›</span>
+            </div>
+
+            <div class="agri-card card-agromet">
+              <div class="agri-head-row">
+                <div>
+                  <div class="agri-title">Agrometeorology widget</div>
+                  <div class="agri-sub">Soil moisture, irrigation heat maps</div>
+                </div>
+              </div>
+              <div class="heatmap-frame" onclick="expandHeatmapModal()">
+                <img src="/agri_soil_heatmap.jpg" alt="NDVI Soil Moisture Heatmap" class="heatmap-img">
+                <button class="expand-ico-btn">⤢</button>
+              </div>
+              <div class="agri-calc-foot">Next Spraying Window (FAO-56 Penman-Monteith calculated)</div>
+            </div>
+
+            <div class="agri-card card-pesticide" onclick="showPesticideDetails()">
+              <div class="card-head with-chev">Pesticide Forecast <span class="chev">›</span></div>
+              <div class="pest-chart-wrap">
+                <div class="pest-y-axis"><span>High</span><span>Med</span><span>Low</span></div>
+                <div class="pest-svg-area">
+                  <svg class="pest-chart-svg" viewBox="0 0 160 70">
+                    <line x1="0" y1="10" x2="160" y2="10" stroke="#f0f3f6" stroke-width="1"/>
+                    <line x1="0" y1="35" x2="160" y2="35" stroke="#f0f3f6" stroke-width="1"/>
+                    <line x1="0" y1="60" x2="160" y2="60" stroke="#f0f3f6" stroke-width="1"/>
+                    <path d="M 15 58 C 45 52, 70 18, 95 18 C 120 18, 135 55, 155 58 L 155 68 L 15 68 Z" fill="rgba(63, 174, 106, 0.22)"/>
+                    <path d="M 15 58 C 45 52, 70 18, 95 18 C 120 18, 135 55, 155 58" fill="none" stroke="#2fae57" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="95" cy="18" r="4" fill="#2fae57"/>
+                  </svg>
+                  <div class="pest-x-axis"><span>Thu</span><span>Fri</span><span>Sat</span></div>
+                </div>
+              </div>
+              <div class="pest-conf-text">Pest Confidence Level (90%)</div>
+            </div>
+
+            <div class="agri-action-list">
+              <div class="agri-action-item" onclick="showSprayingDetails()">
+                <div class="act-ico green-leaf">🌿</div>
+                <div class="act-body"><div class="act-name">Pesticide Application</div><div class="act-status green-text">Optimal Window</div></div>
+                <span class="act-chev">›</span>
+              </div>
+              <div class="agri-action-item" onclick="showFrostDetails()">
+                <div class="act-ico blue-snow">❄️</div>
+                <div class="act-body"><div class="act-name">Frost Risk: <span class="green-text">Low</span></div></div>
+                <span class="act-chev">›</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: PROFILE -->
+          <div id="sTab_profile" class="phone-screen screen-profile hidden">
+            <div class="screen-title-bar st-purple"><span>PROFILE</span></div>
+            <div class="user-id-card" onclick="openModal('modalAuth')">
+              <div class="avatar-ring avatar-vector-wrap">
+                <div class="avatar-vector" id="sProfAvatar">
+                  <span class="avatar-initials" id="sProfInitials">VS</span>
+                </div>
+              </div>
+              <div class="user-meta">
+                <div class="user-fullname" id="sProfName">Vikram S. <span class="chev-small">›</span></div>
+                <div class="user-sublines">
+                  <div id="sProfLoc">• Bengaluru, KA</div>
+                  <div id="sProfPersona">• Persona: Farmer/Gardener & Health Conscious</div>
+                </div>
+              </div>
+            </div>
+
+
+            <!-- Login / Database Switch Banner in Mobile App -->
+            <div class="auth-pill-bar" onclick="openModal('modalAuth')">
+              <span>🗄️ SQLite Auth: <strong id="sAuthStatusLabel">Vikram S.</strong></span>
+              <span class="auth-pill-switch">Switch Account ›</span>
+            </div>
+
+            <div class="section-divider-title">PERSONA MANAGER</div>
+            <div class="section-sub-desc">View and toggle configured context profiles</div>
+            <div class="profile-list-card">
+              <div class="pref-row">
+                <div class="pref-ico bg-green-light">💚</div>
+                <div class="pref-meta"><div class="pref-title">Health-Conscious</div><div class="pref-sub" id="sPSub_HEALTH">Active, Pollen Focus</div></div>
+                <div class="pref-toggle toggle-on" id="sProfToggle_HEALTH" onclick="togglePersonaKey('HEALTH', this)"><span class="t-knob"></span></div>
+              </div>
+              <div class="pref-row">
+                <div class="pref-ico bg-gray-light">🏃</div>
+                <div class="pref-meta"><div class="pref-title">Outdoor Fitness</div><div class="pref-sub" id="sPSub_FITNESS">Inactive</div></div>
+                <div class="pref-toggle toggle-off" id="sProfToggle_FITNESS" onclick="togglePersonaKey('FITNESS', this)"><span class="t-knob"></span></div>
+              </div>
+              <div class="pref-row">
+                <div class="pref-ico bg-blue-light">🚗</div>
+                <div class="pref-meta"><div class="pref-title">Commute Corridor</div><div class="pref-sub" id="sPSub_COMMUTER">Home-Work Route defined</div></div>
+                <div class="pref-toggle toggle-on" id="sProfToggle_COMMUTER" onclick="togglePersonaKey('COMMUTER', this)"><span class="t-knob"></span></div>
+              </div>
+              <div class="pref-row">
+                <div class="pref-ico bg-green-light">🌾</div>
+                <div class="pref-meta"><div class="pref-title">Agrimet</div><div class="pref-sub" id="sPSub_AGRIMET">Farm geo-fence set</div></div>
+                <div class="pref-toggle toggle-on" id="sProfToggle_AGRIMET" onclick="togglePersonaKey('AGRIMET', this)"><span class="t-knob"></span></div>
+              </div>
+            </div>
+
+            <div class="section-divider-title">CALIBRATION</div>
+            <div class="profile-list-card">
+              <div class="pref-row">
+                <div class="pref-ico bg-purple-light">🎤</div>
+                <div class="pref-meta"><div class="pref-title">Acoustic Rain Gauge</div><div class="pref-sub" id="sCalMicText">(Microphone: Active)</div></div>
+                <div class="pref-toggle toggle-on" id="sCalToggle_mic" onclick="toggleAcousticRainGauge(this)"><span class="t-knob"></span></div>
+              </div>
+              <div class="pref-row with-action" onclick="openFloodReportingModal()">
+                <div class="pref-ico bg-purple-light">📍</div>
+                <div class="pref-meta"><div class="pref-title">Hydro-Routing Verification</div><div class="pref-sub">(Report Flood Point)</div></div>
+                <span class="pref-chev">›</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Bottom Navigation for Single View -->
+          <nav class="phone-tabbar">
+            <button class="ptab active t-blue" data-tab="home" onclick="setSingleTab('home')"><span class="ti">🏠</span><span class="tl">Home</span></button>
+            <button class="ptab" data-tab="alerts" onclick="setSingleTab('alerts')"><span class="ti">🔔</span><span class="tl">Alerts</span></button>
+            <button class="ptab" data-tab="agri" onclick="setSingleTab('agri')"><span class="ti">🌿</span><span class="tl">Agri</span></button>
+            <button class="ptab" data-tab="profile" onclick="setSingleTab('profile')"><span class="ti">👤</span><span class="tl">Profile</span></button>
+          </nav>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- VIEW 3: DESKTOP WEB DASHBOARD PORTAL                      -->
+    <!-- ======================================================== -->
+    <div id="desktopView" class="desktop-portal-container hidden">
+      <div class="portal-grid">
+        <!-- Col 1: Weather & Health -->
+        <div class="portal-col col-weather">
+          <div class="portal-card hero-card">
+            <div class="p-card-head">Current Atmospheric State</div>
+            <div class="hero-top-flex">
+              <div>
+                <div class="p-temp" id="dtTemp">29°C</div>
+                <div class="p-loc" id="dtLoc">Agara, Bengaluru, India</div>
+              </div>
+              <div class="p-art">⛅</div>
+            </div>
+            <div class="p-metrics-bar">
+              <div class="pm-item"><span>Humidity</span><strong id="dtHumidity">72%</strong></div>
+              <div class="pm-item"><span>Wind</span><strong id="dtWind">8.5 km/h</strong></div>
+              <div class="pm-item"><span>Visibility</span><strong id="dtVis">4.8 km</strong></div>
+              <div class="pm-item"><span>UV Index</span><strong id="dtUv">5 (Mod)</strong></div>
+            </div>
+          </div>
+
+          <div class="portal-card naqi-dash-card">
+            <div class="p-card-head">National Air Quality Index (NAQI)</div>
+            <div class="naqi-split">
+              <div class="naqi-hero-num" id="dtNaqiVal">68</div>
+              <div>
+                <span class="naqi-badge badge-sat" id="dtNaqiBadge">Satisfactory</span>
+                <div class="dt-naqi-sub">Primary driver: PM2.5 (42 µg/m³)</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="portal-card">
+            <div class="p-card-head">Optimal Outdoor Activity Window</div>
+            <div class="score-radial-flex">
+              <div class="big-score" id="dtActivityScore">8.2 / 10</div>
+              <div class="score-meta">
+                <div><strong>Best Time:</strong> 06:15 AM - 08:30 AM</div>
+                <div><strong>Wet-Bulb Globe Temp:</strong> 22.4°C (Safe)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 2: Interactive Radar & Hazards -->
+        <div class="portal-col col-radar">
+          <div class="portal-card map-portal-card">
+            <div class="p-card-head flex-between">
+              <span>Doppler Convective Storm & Flood Radar</span>
+              <button class="small-storm-btn" id="dtStormToggleBtn" onclick="toggleStorm()">⚡ Trigger / Clear Storm</button>
+            </div>
+            <div id="desktopMapLeaflet" class="desktop-map-viewport"></div>
+            <div class="dt-action-row">
+              <button class="portal-btn-act" onclick="toggleStorm()">⚡ Convective Storm Toggle</button>
+              <button class="portal-btn-act btn-satellite-toggle" id="btnToggleMapStyle" onclick="toggleMapStyle()">🛰️ Satellite Radar</button>
+              <button class="portal-btn-act btn-flood-rep" onclick="openFloodReportingModal()">🌊 Report Flood Hazard</button>
+              <button class="portal-btn-act btn-recenter" onclick="recenterDesktopMap()">📍 Recenter Map</button>
+            </div>
+          </div>
+
+          <div class="portal-card hazards-portal-card">
+            <div class="p-card-head">Active Meteorological Hazards (Bengaluru Urban & Rural)</div>
+            <div class="hazard-list-grid">
+              <div class="hz-box" onclick="showLightningAlertInfo()">
+                <span class="hz-box-ico">⚡</span>
+                <div>
+                  <div class="hz-b-title">Lightning Proximity</div>
+                  <div class="hz-b-val red-text" id="dtLightning">6 mins (4.2 km)</div>
+                </div>
+              </div>
+              <div class="hz-box" onclick="showFloodDetails()">
+                <span class="hz-box-ico">🌊</span>
+                <div>
+                  <div class="hz-b-title">Waterlogging Risk</div>
+                  <div class="hz-b-val red-text" id="dtWaterlogging">Active (Agara Underpass 1)</div>
+                </div>
+              </div>
+              <div class="hz-box" onclick="showShelterAdvisory()">
+                <span class="hz-box-ico">🏠</span>
+                <div>
+                  <div class="hz-b-title">Shelter Protocol</div>
+                  <div class="hz-b-val red-text" id="dtShelter">Immediate Enclosure Recommended</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 3: Agrometeorology & Persona Management -->
+        <div class="portal-col col-agri">
+          <!-- Database Account Card in Desktop -->
+          <div class="portal-card user-dash-card">
+            <div class="p-card-head flex-between">
+              <span>Database Account</span>
+              <span class="db-chip">SQLite: mausam.db</span>
+            </div>
+            <div class="dt-user-flex">
+              <div class="dt-avatar-vector" id="dtUserAvatar">
+                <span id="dtUserInitials">VS</span>
+              </div>
+              <div class="dt-user-info">
+                <strong id="dtUserName">Vikram S.</strong>
+                <div id="dtUserLoc">Bengaluru, KA • Farmer & Health</div>
+              </div>
+              <button class="portal-btn-act" onclick="openModal('modalAuth')">Switch Account</button>
+            </div>
+          </div>
+
+          <div class="portal-card agri-dash-card">
+            <div class="p-card-head flex-between">
+              <span>Agrometeorology (Manduri Plot)</span>
+              <button class="portal-link-btn" onclick="expandHeatmapModal()">⤢ Expand</button>
+            </div>
+            <div class="dt-heatmap-wrap" onclick="expandHeatmapModal()">
+              <img src="/agri_soil_heatmap.jpg" alt="NDVI Soil Moisture Heatmap" class="dt-heatmap-img">
+            </div>
+            <div class="agri-quick-stats">
+              <div class="aq-item"><span>Soil Moisture:</span> <strong>34.2% VWC</strong></div>
+              <div class="aq-item"><span>FAO-56 ET₀:</span> <strong>4.2 mm/day</strong></div>
+              <div class="aq-item"><span>Spraying Window:</span> <strong class="green-text">Optimal</strong></div>
+            </div>
+          </div>
+
+          <div class="portal-card persona-dash-card">
+            <div class="p-card-head">Context Profiles & Personas (Database Synced)</div>
+            <div class="dt-persona-list">
+              <div class="dt-p-row">
+                <span>🌬️ Health-Conscious</span>
+                <button class="dt-toggle-btn active" id="dtBtn_HEALTH" onclick="togglePersonaKey('HEALTH', this)">Active</button>
+              </div>
+              <div class="dt-p-row">
+                <span>🏃 Outdoor Fitness</span>
+                <button class="dt-toggle-btn" id="dtBtn_FITNESS" onclick="togglePersonaKey('FITNESS', this)">Inactive</button>
+              </div>
+              <div class="dt-p-row">
+                <span>🚗 Commute Corridor</span>
+                <button class="dt-toggle-btn active" id="dtBtn_COMMUTER" onclick="togglePersonaKey('COMMUTER', this)">Active</button>
+              </div>
+              <div class="dt-p-row">
+                <span>🌾 Agrimet Geo-Fence</span>
+                <button class="dt-toggle-btn active" id="dtBtn_AGRIMET" onclick="togglePersonaKey('AGRIMET', this)">Active</button>
+              </div>
+              <div class="dt-p-row">
+                <span>🎤 Acoustic Rain Gauge</span>
+                <button class="dt-toggle-btn active" id="dtBtn_CAL_MIC" onclick="toggleAcousticRainGauge(this)">Active</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODALS & POPUPS                                          -->
+  <!-- ======================================================== -->
+
+  <!-- AUTH / LOGIN / SIGNUP MODAL (Database Backed) -->
+  <div id="modalAuth" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'modalAuth')">
+    <div class="modal-dialog">
+      <div class="modal-header-bar">
+        <div class="modal-title-wrap">
+          <span class="modal-brand-badge">☁️ Mausam Account</span>
+          <span class="modal-subtitle">SQLite Synchronized Profile</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('modalAuth')" title="Close (or press Esc)" aria-label="Close modal">✕</button>
+      </div>
+
+      <div class="dialog-content">
+        <div class="auth-tabs">
+          <button type="button" class="auth-tab-btn active" id="tabBtnLogin" onclick="switchAuthTab('login')">Sign In</button>
+          <button type="button" class="auth-tab-btn" id="tabBtnRegister" onclick="switchAuthTab('register')">Create Account</button>
+        </div>
+
+        <div id="authErrorMsg" class="auth-error-box hidden"></div>
+
+        <!-- Sign In Form -->
+        <form id="formLogin" onsubmit="handleLoginSubmit(event)">
+          <div class="form-group">
+            <label>Username or Email</label>
+            <input type="text" id="loginAccountInput" class="text-input" placeholder="e.g. vikram or vikram@mausam.in" value="vikram" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <div class="password-input-wrap">
+              <input type="password" id="loginPasswordInput" class="text-input" placeholder="Enter password" value="password123" required>
+              <button type="button" class="pw-toggle-btn" onclick="togglePasswordVisibility('loginPasswordInput', this)" title="Show/Hide password">
+                <span class="pw-eye-icon">👁️</span>
+              </button>
+            </div>
+          </div>
+          <div class="auth-actions-row">
+            <button type="submit" class="submit-report-btn auth-submit-btn">Sign In with SQLite</button>
+            <button type="button" class="cancel-modal-btn" onclick="closeModal('modalAuth')">Cancel</button>
+          </div>
+        </form>
+
+        <!-- Register Form -->
+        <form id="formRegister" class="hidden" onsubmit="handleRegisterSubmit(event)">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="regFullNameInput" class="text-input" placeholder="e.g. Ramesh Kumar" required>
+          </div>
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="regUsernameInput" class="text-input" placeholder="e.g. ramesh" required>
+          </div>
+          <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" id="regEmailInput" class="text-input" placeholder="e.g. ramesh@example.com" required>
+          </div>
+          <div class="form-group">
+            <label>City / Location</label>
+            <input type="text" id="regLocationInput" class="text-input" placeholder="e.g. Bengaluru, KA" value="Bengaluru, KA" required>
+          </div>
+          <div class="form-group">
+            <label>Create Password</label>
+            <div class="password-input-wrap">
+              <input type="password" id="regPasswordInput" class="text-input" placeholder="Minimum 6 characters" required>
+              <button type="button" class="pw-toggle-btn" onclick="togglePasswordVisibility('regPasswordInput', this)" title="Show/Hide password">
+                <span class="pw-eye-icon">👁️</span>
+              </button>
+            </div>
+          </div>
+          <div class="auth-actions-row">
+            <button type="submit" class="submit-report-btn auth-submit-btn">Create Account & Store in DB</button>
+            <button type="button" class="cancel-modal-btn" onclick="closeModal('modalAuth')">Cancel</button>
+          </div>
+        </form>
+
+        <!-- Quick 1-Click Demo Profiles -->
+        <div class="demo-accounts-section">
+          <div class="demo-title">⚡ Instant 1-Click Demo Logins:</div>
+          <div class="demo-chips-grid">
+            <button type="button" class="demo-chip" onclick="quickLogin('vikram')">
+              <strong>👨‍🌾 Vikram S.</strong>
+              <span>Farmer & Health • Bengaluru</span>
+            </button>
+            <button type="button" class="demo-chip" onclick="quickLogin('priya')">
+              <strong>🌾 Priya Sharma</strong>
+              <span>Agri-Scientist • Manduri</span>
+            </button>
+            <button type="button" class="demo-chip" onclick="quickLogin('arjun')">
+              <strong>🏃 Arjun Patel</strong>
+              <span>Fitness Runner • Whitefield</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="db-footer-badge">
+          <span>🗄️ Database: SQLite (mausam.db) • Password Salted Hash SHA-256</span>
+        </div>
+
+        <button type="button" class="modal-dismiss-link" onclick="closeModal('modalAuth')">✕ Close window</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Modal for Onboarding -->
+  <div id="modalOnboarding" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'modalOnboarding')">
+    <div class="modal-dialog">
+      <div class="modal-header-bar">
+        <div class="modal-title-wrap">
+          <span class="modal-brand-badge">✨ User Onboarding</span>
+          <span class="modal-subtitle">Persona & Intelligence Configuration</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('modalOnboarding')" title="Close (or press Esc)" aria-label="Close modal">✕</button>
+      </div>
+      <div class="dialog-content">
+        <h2 class="dialog-title">Welcome to Mausam Intelligence</h2>
+        <p class="dialog-desc">Configure your personalized weather hazard triggers and adaptive modules:</p>
+        <div class="onboard-grid">
+          <div class="onboard-card" onclick="toggleOnboardPersona('HEALTH')">
+            <div class="ob-ico wind-ico">💨</div>
+            <div class="ob-info">
+              <div class="ob-name">Health-Conscious</div>
+              <div class="ob-sub">(Pollen, intensity and Scale/vet)</div>
+            </div>
+            <div class="ob-toggle toggle-on" id="mObToggle_HEALTH"><span class="t-knob"></span></div>
+          </div>
+          <div class="onboard-card" onclick="toggleOnboardPersona('FITNESS')">
+            <div class="ob-ico fit-ico">💧🌡️</div>
+            <div class="ob-info">
+              <div class="ob-name">Outdoor Fitness</div>
+              <div class="ob-sub">(Run Planning and sensor/sensor)</div>
+            </div>
+            <div class="ob-toggle toggle-on" id="mObToggle_FITNESS"><span class="t-knob"></span></div>
+          </div>
+          <div class="onboard-card" onclick="toggleOnboardPersona('COASTAL')">
+            <div class="ob-ico sea-ico">🛟</div>
+            <div class="ob-info">
+              <div class="ob-name">Sea Conditions</div>
+              <div class="ob-sub">(Tide, wave height, buoy, wave and buoy)</div>
+            </div>
+            <div class="ob-toggle toggle-on" id="mObToggle_COASTAL"><span class="t-knob"></span></div>
+          </div>
+          <div class="onboard-card" onclick="toggleOnboardPersona('TRAVELER')">
+            <div class="ob-ico plane-ico">✈️⚠️</div>
+            <div class="ob-info">
+              <div class="ob-name">Flight Alerts</div>
+              <div class="ob-sub">(Severe weather, cancel)</div>
+            </div>
+            <div class="ob-toggle toggle-on" id="mObToggle_TRAVELER"><span class="t-knob"></span></div>
+          </div>
+        </div>
+        <div class="auth-actions-row" style="margin-top:16px;">
+          <button type="button" class="onboard-cta-btn" onclick="saveOnboardingModal()">Save & Apply Preferences</button>
+          <button type="button" class="cancel-modal-btn" onclick="closeModal('modalOnboarding')">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crowdsource Flood Point Reporter Modal -->
+  <div id="modalFloodReport" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'modalFloodReport')">
+    <div class="modal-dialog">
+      <div class="modal-header-bar">
+        <div class="modal-title-wrap">
+          <span class="modal-brand-badge">🌊 Hazard Report</span>
+          <span class="modal-subtitle">Crowdsourced Observation</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('modalFloodReport')" title="Close (or press Esc)" aria-label="Close modal">✕</button>
+      </div>
+      <div class="dialog-content">
+        <h2 class="dialog-title">📍 Report Waterlogging / Flood Point</h2>
+        <p class="dialog-desc">Your crowdsourced observations are clustered via DBSCAN algorithm and stored in SQLite database. 3+ corroborations within 150m and 20 min promote to an official civil advisory.</p>
+        <div class="form-group">
+          <label>Hazard Location</label>
+          <input type="text" id="reportLocInput" class="text-input" value="Agara Junction / Ring Road Underpass" readonly>
+        </div>
+        <div class="form-group">
+          <label>Water Depth Estimation</label>
+          <select id="waterDepthSelect" class="text-input">
+            <option value="CURB">Curb Level (&lt; 15 cm)</option>
+            <option value="WHEEL" selected>Axle / Wheel Hub (15 - 30 cm)</option>
+            <option value="HOOD">Severe / Engine Submersion (&gt; 45 cm)</option>
+          </select>
+        </div>
+        <div class="auth-actions-row" style="margin-top:16px;">
+          <button type="button" class="submit-report-btn" onclick="submitFloodReportAction()">Submit Corroborated Report</button>
+          <button type="button" class="cancel-modal-btn" onclick="closeModal('modalFloodReport')">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Heatmap Fullscreen Viewer Modal -->
+  <div id="modalHeatmap" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'modalHeatmap')">
+    <div class="modal-dialog modal-wide">
+      <div class="modal-header-bar">
+        <div class="modal-title-wrap">
+          <span class="modal-brand-badge">🌾 Agrometeorology</span>
+          <span class="modal-subtitle">Thermal & NDVI Soil Moisture Heatmap</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('modalHeatmap')" title="Close (or press Esc)" aria-label="Close modal">✕</button>
+      </div>
+      <div class="dialog-content">
+        <h2 class="dialog-title">Sentinel-2 Multi-Spectral Heatmap</h2>
+        <p class="dialog-desc">High-resolution 10m/pixel composite with soil moisture isotherms and irrigation recommendation overlay.</p>
+        <img src="/agri_soil_heatmap.jpg" alt="NDVI High-Res" class="modal-wide-img">
+        <div class="heatmap-legend-row">
+          <span>🔴 Very Dry / Heat Stress</span>
+          <span>🟡 Moderate Transpiration</span>
+          <span>🟢 Optimal Root Hydration</span>
+        </div>
+        <button type="button" class="cancel-modal-btn" onclick="closeModal('modalHeatmap')" style="width:100%;margin-top:16px;">Close Heatmap</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
+

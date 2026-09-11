@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  mausam-app:
+    build: .
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+
+# Production scale-up path (documented in ARCHITECTURE.md / UI_AND_STREAMING.md):
+# add a `postgres` service (postgis/postgis image) using schema.sql from the
+# earlier deliverable, and a `redis` service for pub/sub, then point the
+# backend at them instead of the in-memory STATE dict in mock_feeds.py.
+# Left out of this compose file so `docker compose up` works standalone,
+# with zero external services, for the demo build.
