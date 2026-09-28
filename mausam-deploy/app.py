@@ -192,8 +192,17 @@ def api_set_location():
     lat = float(body.get("lat", 12.933))
     lon = float(body.get("lon", 77.625))
     district = body.get("district", "Bengaluru Urban")
-    mock_feeds.set_location(name, lat, lon, district)
-    return jsonify({"ok": True, "location": mock_feeds.STATE["location"]})
+    fetch_live = bool(body.get("fetch_live", True))
+
+    mock_feeds.set_location(name, lat, lon, district, fetch_live=False)
+    if fetch_live:
+        mock_feeds.fetch_live_data(lat, lon)
+
+    return jsonify({
+        "ok": True,
+        "location": mock_feeds.STATE["location"],
+        "state": mock_feeds.snapshot()
+    })
 
 
 @app.route("/api/trigger_storm", methods=["POST"])
@@ -204,29 +213,98 @@ def api_trigger_storm():
     return jsonify({"ok": True, "lightning_active": mock_feeds.STATE["lightning_active"]})
 
 
+@app.route("/api/reverse_geocode")
+def api_reverse_geocode():
+    """
+    Reverse geocodes lat/lon into readable neighborhood, city, and district.
+    Uses OpenStreetMap Nominatim with graceful fallback.
+    """
+    import requests
+    lat = request.args.get("lat")
+    lon = request.args.get("lon")
+    if not lat or not lon:
+        return jsonify({"ok": False, "error": "lat and lon query params required."}), 400
+
+    try:
+        lat = float(lat)
+        lon = float(lon)
+        headers = {"User-Agent": "MausamApp/2.0 (SIH-Weather-Intelligence; student-research)"}
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=16"
+        resp = requests.get(url, headers=headers, timeout=4.0)
+        if resp.status_code == 200:
+            data = resp.json()
+            addr = data.get("address", {})
+            neighborhood = (
+                addr.get("suburb") or addr.get("neighbourhood") or
+                addr.get("residential") or addr.get("village") or
+                addr.get("hamlet") or addr.get("road") or ""
+            )
+            city = addr.get("city") or addr.get("town") or addr.get("municipality") or addr.get("county") or ""
+            state = addr.get("state") or ""
+            district = addr.get("state_district") or addr.get("county") or city
+
+            parts = [p for p in [neighborhood, city, state] if p]
+            formatted_name = ", ".join(parts[:2]) if parts else data.get("display_name", f"{lat:.3f}, {lon:.3f}")
+            if country := addr.get("country"):
+                if country not in formatted_name:
+                    formatted_name = f"{formatted_name}, {country}"
+
+            return jsonify({
+                "ok": True,
+                "name": formatted_name,
+                "district": district or city or "Local District",
+                "city": city,
+                "state": state,
+                "lat": lat,
+                "lon": lon,
+            })
+    except Exception as e:
+        pass
+
+    # Fallback to coordinate string if geocoding times out or rate limits
+    return jsonify({
+        "ok": True,
+        "name": f"Coordinates ({float(lat):.4f}, {float(lon):.4f})",
+        "district": "Local Area",
+        "lat": float(lat),
+        "lon": float(lon),
+    })
+
+
 @app.route("/api/weather/live")
 def api_weather_live():
     """
-    Fetches live weather from Open-Meteo API for current lat/lon,
-    updating the state with real observations if reachable.
+    Fetches live weather from Open-Meteo Weather API + CAMS Air Quality API
+    for either the supplied lat/lon or current active state coordinates.
+    Calculates official CPCB NAQI with 6 pollutant sub-indices.
     """
-    import requests
-    lat = mock_feeds.STATE["location"]["lat"]
-    lon = mock_feeds.STATE["location"]["lon"]
-    try:
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,precipitation&timezone=auto"
-        resp = requests.get(url, timeout=3.0)
-        if resp.status_code == 200:
-            data = resp.json().get("current", {})
-            with mock_feeds._lock:
-                mock_feeds.STATE["weather"]["temp_c"] = round(data.get("temperature_2m", mock_feeds.STATE["weather"]["temp_c"]), 1)
-                mock_feeds.STATE["weather"]["rh_pct"] = int(data.get("relative_humidity_2m", mock_feeds.STATE["weather"]["rh_pct"]))
-                mock_feeds.STATE["weather"]["wind_kph"] = round(data.get("wind_speed_10m", mock_feeds.STATE["weather"]["wind_kph"]), 1)
-                mock_feeds.STATE["weather"]["rain_mm_hr"] = round(data.get("precipitation", 0.0), 1)
-            return jsonify({"ok": True, "live": True, "state": mock_feeds.snapshot()})
-    except Exception as e:
-        pass
-    return jsonify({"ok": True, "live": False, "state": mock_feeds.snapshot()})
+    lat = request.args.get("lat")
+    lon = request.args.get("lon")
+
+    if lat is not None and lon is not None:
+        try:
+            target_lat = float(lat)
+            target_lon = float(lon)
+        except ValueError:
+            target_lat = mock_feeds.STATE["location"]["lat"]
+            target_lon = mock_feeds.STATE["location"]["lon"]
+    else:
+        target_lat = mock_feeds.STATE["location"]["lat"]
+        target_lon = mock_feeds.STATE["location"]["lon"]
+
+    res = mock_feeds.fetch_live_data(target_lat, target_lon)
+    return jsonify(res)
+
+
+@app.route("/api/mode", methods=["POST"])
+def api_set_mode():
+    body = request.get_json(force=True) if request.is_json else {}
+    mode = body.get("mode", "live")
+    if mode in ["live", "simulation"]:
+        with mock_feeds._lock:
+            mock_feeds.STATE["data_source"] = mode
+        return jsonify({"ok": True, "mode": mode, "state": mock_feeds.snapshot()})
+    return jsonify({"ok": False, "error": "Invalid mode. Choose 'live' or 'simulation'."}), 400
 
 
 @app.route("/api/report", methods=["POST"])
@@ -280,6 +358,8 @@ def stream():
     })
 
 
+# Synchronize initial real-time live data and auto-detect location
+mock_feeds.init_live_data()
 mock_feeds.start_background_loop(interval_sec=4.0)
 
 if __name__ == "__main__":

@@ -74,30 +74,176 @@ def commute_friction_index(visibility_m, rain_mm_hr, naqi, fog_advisory, flood_p
 
 _PM25_BP = [(0, 30, 0, 50), (31, 60, 51, 100), (61, 90, 101, 200), (91, 120, 201, 300), (121, 250, 301, 400), (251, 500, 401, 500)]
 _PM10_BP = [(0, 50, 0, 50), (51, 100, 51, 100), (101, 250, 101, 200), (251, 350, 201, 300), (351, 430, 301, 400), (431, 600, 401, 500)]
-_O3_BP = [(0, 50, 0, 50), (51, 100, 51, 100), (101, 168, 101, 200), (169, 208, 201, 300), (209, 748, 301, 400), (749, 1000, 401, 500)]
+_NO2_BP  = [(0, 40, 0, 50), (41, 80, 51, 100), (81, 180, 101, 200), (181, 280, 201, 300), (281, 400, 301, 400), (401, 600, 401, 500)]
+_SO2_BP  = [(0, 40, 0, 50), (41, 80, 51, 100), (81, 380, 101, 200), (381, 800, 201, 300), (801, 1600, 301, 400), (1601, 2000, 401, 500)]
+_CO_BP   = [(0.0, 1.0, 0, 50), (1.1, 2.0, 51, 100), (2.1, 10.0, 101, 200), (10.1, 17.0, 201, 300), (17.1, 34.0, 301, 400), (34.1, 50.0, 401, 500)] # mg/m3
+
+# Official CPCB 8-Hour Average Ozone Breakpoints (ug/m3)
+_O3_8HR_BP = [(0, 50, 0, 50), (51, 100, 51, 100), (101, 168, 101, 200), (169, 208, 201, 300), (209, 748, 301, 400), (749, 1000, 401, 500)]
+
+# Official CPCB 1-Hour Peak Ozone Breakpoints (ug/m3) — Prevents artificial midday photochemical spikes
+_O3_1HR_BP = [(0, 100, 0, 50), (101, 180, 51, 100), (181, 280, 101, 200), (281, 400, 201, 300), (401, 800, 301, 400), (801, 1200, 401, 500)]
+_O3_BP = _O3_8HR_BP  # Backward-compatible alias
 
 
 def _cpcb_subindex(c, bp):
-    # CPCB's published breakpoint tables have small integer gaps between
-    # brackets (e.g. PM10: ...50 | 51...) that a float reading can fall
-    # into. Match on "first bracket whose upper bound covers c" rather
-    # than requiring c to sit inside [c_lo, c_hi], and clamp c to c_lo
-    # when it's below it — this snaps a gap value to the nearest correct
-    # bracket instead of falling through to the fallback (which used to
-    # silently return a maxed-out "Severe" index for a value like 50.5).
+    if c is None or c < 0:
+        return 0.0
     for c_lo, c_hi, i_lo, i_hi in bp:
         if c <= c_hi:
             c_eff = max(c, c_lo)
             return i_lo + (i_hi - i_lo) / (c_hi - c_lo) * (c_eff - c_lo)
-    return bp[-1][3]
+    return float(bp[-1][3])
 
 
-def composite_naqi(pm25, pm10, ozone):
-    val = int(round(max(_cpcb_subindex(pm25, _PM25_BP), _cpcb_subindex(pm10, _PM10_BP), _cpcb_subindex(ozone, _O3_BP))))
-    for threshold, tier in [(50, "Good"), (100, "Satisfactory"), (200, "Moderate"), (300, "Poor"), (400, "Very Poor"), (500, "Severe")]:
+class NaqiResult(tuple):
+    """
+    Tuple subclass (val, tier) for seamless backward compatibility
+    while also exposing rich sub-indices, prominent pollutant, and health guidance.
+    """
+    def __new__(cls, val, tier, details=None):
+        inst = super().__new__(cls, (val, tier))
+        inst.val = val
+        inst.tier = tier
+        inst.details = details or {}
+        return inst
+
+    def to_dict(self):
+        return {
+            "value": self.val,
+            "tier": self.tier,
+            **self.details
+        }
+
+
+def composite_naqi(pm25=None, pm10=None, ozone=None, ozone_8hr=None, no2=None, so2=None, co=None, co_is_ugm3=True, ozone_is_1hr=False):
+    """
+    Official Indian CPCB National Air Quality Index (NAQI) calculation.
+    Evaluates PM2.5, PM10, NO2, SO2, CO, and Ozone.
+    Supports both 8-hour rolling average ozone and 1-hour peak ozone standards.
+    The overall NAQI is the maximum of the individual sub-indices.
+    """
+    sub_indices = {}
+    raw_pollutants = {}
+
+    if pm25 is not None:
+        sub_indices["pm25"] = round(_cpcb_subindex(pm25, _PM25_BP), 1)
+        raw_pollutants["pm25"] = round(float(pm25), 1)
+
+    if pm10 is not None:
+        sub_indices["pm10"] = round(_cpcb_subindex(pm10, _PM10_BP), 1)
+        raw_pollutants["pm10"] = round(float(pm10), 1)
+
+    # Use 8-hour rolling average ozone if provided (standard CPCB method)
+    if ozone_8hr is not None:
+        sub_indices["ozone"] = round(_cpcb_subindex(ozone_8hr, _O3_8HR_BP), 1)
+        raw_pollutants["ozone"] = round(float(ozone_8hr), 1)
+        raw_pollutants["ozone_8hr"] = round(float(ozone_8hr), 1)
+    elif ozone is not None:
+        # If instantaneous 1-hour reading, use 1-hour CPCB breakpoints
+        bp = _O3_1HR_BP if ozone_is_1hr else _O3_8HR_BP
+        sub_indices["ozone"] = round(_cpcb_subindex(ozone, bp), 1)
+        raw_pollutants["ozone"] = round(float(ozone), 1)
+
+    if no2 is not None:
+        sub_indices["no2"] = round(_cpcb_subindex(no2, _NO2_BP), 1)
+        raw_pollutants["no2"] = round(float(no2), 1)
+
+    if so2 is not None:
+        sub_indices["so2"] = round(_cpcb_subindex(so2, _SO2_BP), 1)
+        raw_pollutants["so2"] = round(float(so2), 1)
+
+    if co is not None:
+        co_mg = (co / 1000.0) if co_is_ugm3 else co
+        sub_indices["co"] = round(_cpcb_subindex(co_mg, _CO_BP), 1)
+        raw_pollutants["co"] = round(float(co_mg), 2)  # mg/m3
+
+    if not sub_indices:
+        sub_indices["pm25"] = 45.0
+
+    val = int(round(max(sub_indices.values())))
+    val = min(max(val, 0), 500)
+
+    # Prominent driver pollutant
+    prominent = max(sub_indices, key=sub_indices.get)
+    prominent_names = {
+        "pm25": "PM2.5", "pm10": "PM10", "no2": "NO2",
+        "so2": "SO2", "co": "CO", "ozone": "Ozone (O3)"
+    }
+
+    tier = "Severe"
+    advisory = "Affects healthy people and seriously impacts those with existing respiratory/cardiovascular diseases."
+    tiers_table = [
+        (50, "Good", "Minimal impact. Safe for all outdoor activities."),
+        (100, "Satisfactory", "Minor breathing discomfort to sensitive people."),
+        (200, "Moderate", "Breathing discomfort to people with lung, asthma, and heart conditions."),
+        (300, "Poor", "Breathing discomfort to most people on prolonged exposure."),
+        (400, "Very Poor", "Respiratory illness on prolonged exposure. Limit prolonged exertion."),
+        (500, "Severe", "Emergency level. Avoid outdoor exertion; use N95 masks."),
+    ]
+    for threshold, t_name, adv in tiers_table:
         if val <= threshold:
-            return val, tier
-    return val, "Severe"
+            tier = t_name
+            advisory = adv
+            break
+
+    details = {
+        "prominent": prominent_names.get(prominent, prominent.upper()),
+        "prominent_key": prominent,
+        "sub_indices": sub_indices,
+        "raw_pollutants": raw_pollutants,
+        "advisory": advisory,
+    }
+
+    return NaqiResult(val, tier, details)
+
+
+WMO_WEATHER_CODES = {
+    0: ("Clear Sky", "☀️", "🌙"),
+    1: ("Mainly Clear", "🌤️", "🌤️"),
+    2: ("Partly Cloudy", "⛅", "⛅"),
+    3: ("Overcast", "☁️", "☁️"),
+    45: ("Foggy", "🌫️", "🌫️"),
+    48: ("Depositing Rime Fog", "🌫️", "🌫️"),
+    51: ("Light Drizzle", "🌦️", "🌦️"),
+    53: ("Moderate Drizzle", "🌦️", "🌦️"),
+    55: ("Dense Drizzle", "🌧️", "🌧️"),
+    56: ("Freezing Drizzle", "🌨️", "🌨️"),
+    57: ("Dense Freezing Drizzle", "🌨️", "🌨️"),
+    61: ("Slight Rain", "🌦️", "🌦️"),
+    63: ("Moderate Rain", "🌧️", "🌧️"),
+    65: ("Heavy Rain", "🌧️", "🌧️"),
+    66: ("Freezing Rain", "🌨️", "🌨️"),
+    67: ("Heavy Freezing Rain", "🌨️", "🌨️"),
+    71: ("Slight Snow", "🌨️", "🌨️"),
+    73: ("Moderate Snow", "❄️", "❄️"),
+    75: ("Heavy Snow", "❄️", "❄️"),
+    77: ("Snow Grains", "❄️", "❄️"),
+    80: ("Slight Rain Showers", "🌦️", "🌦️"),
+    81: ("Moderate Rain Showers", "🌧️", "🌧️"),
+    82: ("Violent Rain Showers", "⛈️", "⛈️"),
+    85: ("Snow Showers", "🌨️", "🌨️"),
+    86: ("Heavy Snow Showers", "❄️", "❄️"),
+    95: ("Thunderstorm", "⚡", "⚡"),
+    96: ("Thunderstorm with Slight Hail", "⛈️", "⛈️"),
+    99: ("Thunderstorm with Heavy Hail", "⛈️", "⛈️"),
+}
+
+
+def wmo_weather_info(code: int, is_day: int = 1) -> tuple[str, str]:
+    entry = WMO_WEATHER_CODES.get(code, ("Clear Sky", "☀️", "🌙"))
+    desc = entry[0]
+    ico = entry[1] if is_day else entry[2]
+    return desc, ico
+
+
+def degrees_to_cardinal(deg: float) -> str:
+    if deg is None:
+        return "N"
+    directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                  "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+    ix = int((deg + 11.25) / 22.5) % 16
+    return directions[ix]
 
 
 def fao56_penman_monteith_eto(temp_c: float, rh_pct: float, solar_wm2: float, wind_kph: float) -> dict:

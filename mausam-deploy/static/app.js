@@ -36,6 +36,7 @@ let eventSource = null;
 document.addEventListener("DOMContentLoaded", () => {
   setupViewModeButtons();
   setupLocationSelector();
+  setupGpsButtons();
   setupStormToggleButton();
   setupSyncLiveButton();
   startClockUpdater();
@@ -44,6 +45,11 @@ document.addEventListener("DOMContentLoaded", () => {
   checkAuth();
   fetchState();
   connectSSE();
+
+  // Seamlessly attempt browser GPS geolocation on startup
+  if (navigator.geolocation) {
+    setTimeout(() => detectUserLocation(true), 400);
+  }
 });
 
 function startClockUpdater() {
@@ -405,6 +411,33 @@ function connectSSE() {
 // ========================================================
 function renderAllViews() {
   if (!STATE) return;
+
+  // Sync location dropdown with active location
+  const sel = document.getElementById("locationSelect");
+  if (sel && STATE.location && STATE.location.name) {
+    let found = false;
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === STATE.location.name) {
+        sel.selectedIndex = i;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      let opt = document.getElementById("optCurrentGps");
+      if (!opt) {
+        opt = document.createElement("option");
+        opt.id = "optCurrentGps";
+        sel.insertBefore(opt, sel.firstChild);
+      }
+      opt.value = STATE.location.name;
+      opt.dataset.lat = STATE.location.lat;
+      opt.dataset.lon = STATE.location.lon;
+      opt.textContent = `📍 ${STATE.location.name}`;
+      sel.value = STATE.location.name;
+    }
+  }
+
   renderHomeModule();
   renderAlertsModule();
   renderOnboardingModule();
@@ -445,16 +478,44 @@ function renderHomeModule() {
     }
   });
 
+  // Dominant pollutant driver
+  const driverName = a.prominent || "PM2.5";
+  ["homeNaqiDriver", "sHomeNaqiDriver"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = `${driverName} Dominant`;
+  });
+
   const pointerPct = Math.min(Math.max((a.value / 200) * 80 + 10, 5), 95);
   ["homeNaqiPointer", "sHomeNaqiPointer"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.left = `${pointerPct}%`;
   });
 
-  // Weather & Location
+  // Weather & Location - Exact high-precision temperature
+  const tempStr = (w.temp_c !== undefined && w.temp_c !== null) 
+    ? `${w.temp_c % 1 === 0 ? w.temp_c.toFixed(0) : w.temp_c.toFixed(1)}°C` 
+    : "--°C";
+
   ["homeTemp", "sHomeTemp"].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.textContent = `${w.temp_c.toFixed(0)}°C`;
+    if (el) el.textContent = tempStr;
+  });
+
+  const condIco = w.condition_icon || "☁️";
+  ["homeWeatherIcon", "sHomeWeatherIcon"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = condIco;
+  });
+
+  const condDesc = w.condition_desc || "Partly Cloudy";
+  const feelsLike = (w.feels_like_c !== undefined) ? w.feels_like_c : w.temp_c;
+  const feelsStr = (feelsLike !== undefined && feelsLike !== null) 
+    ? `${feelsLike % 1 === 0 ? feelsLike.toFixed(0) : feelsLike.toFixed(1)}°C` 
+    : "";
+  const condLine = `${condDesc} • Feels like ${feelsStr}`;
+  ["homeWeatherCond", "sHomeWeatherCond"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = condLine;
   });
 
   ["homeLoc", "sHomeLoc"].forEach(id => {
@@ -646,7 +707,24 @@ function renderDesktopPortal() {
   const isStorm = STATE.lightning_active;
 
   const dTemp = document.getElementById("dtTemp");
-  if (dTemp) dTemp.textContent = `${w.temp_c.toFixed(0)}°C`;
+  if (dTemp) {
+    dTemp.textContent = (w.temp_c !== undefined && w.temp_c !== null)
+      ? `${w.temp_c % 1 === 0 ? w.temp_c.toFixed(0) : w.temp_c.toFixed(1)}°C`
+      : "--°C";
+  }
+
+  const dCond = document.getElementById("dtWeatherCond");
+  if (dCond) {
+    const condDesc = w.condition_desc || "Partly Cloudy";
+    const feelsLike = (w.feels_like_c !== undefined) ? w.feels_like_c : w.temp_c;
+    const feelsStr = (feelsLike !== undefined && feelsLike !== null)
+      ? `${feelsLike % 1 === 0 ? feelsLike.toFixed(0) : feelsLike.toFixed(1)}°C`
+      : "";
+    dCond.textContent = `${condDesc} • Feels like ${feelsStr}`;
+  }
+
+  const dArt = document.getElementById("dtWeatherIcon");
+  if (dArt) dArt.textContent = w.condition_icon || "☁️";
 
   const dLoc = document.getElementById("dtLoc");
   if (dLoc) dLoc.textContent = loc.name;
@@ -655,7 +733,10 @@ function renderDesktopPortal() {
   if (dHum) dHum.textContent = `${w.rh_pct}%`;
 
   const dWind = document.getElementById("dtWind");
-  if (dWind) dWind.textContent = `${w.wind_kph.toFixed(1)} km/h`;
+  if (dWind) {
+    const dirStr = w.wind_dir ? ` ${w.wind_dir}` : "";
+    dWind.textContent = `${w.wind_kph.toFixed(1)} km/h${dirStr}`;
+  }
 
   const dVis = document.getElementById("dtVis");
   if (dVis) dVis.textContent = `${(w.visibility_m/1000).toFixed(1)} km`;
@@ -674,6 +755,13 @@ function renderDesktopPortal() {
       "Poor": "#eb5757", "Very Poor": "#9b51e0", "Severe": "#7d1c1c"
     };
     dBadge.style.background = colors[a.tier] || "#f5c518";
+  }
+
+  const dDriver = document.getElementById("dtNaqiDriver");
+  if (dDriver) {
+    const rawVal = a.raw_pollutants && a.prominent_key && a.raw_pollutants[a.prominent_key];
+    const rawStr = rawVal ? ` (${rawVal} µg/m³)` : "";
+    dDriver.textContent = `Primary driver: ${a.prominent || 'PM2.5'}${rawStr}`;
   }
 
   const dScore = document.getElementById("dtActivityScore");
@@ -942,27 +1030,52 @@ function updateStormMapOverlays() {
           .addTo(layer);
       });
     }
+
+    // Live User GPS / Monitored Location Beacon Marker
+    if (STATE && STATE.location) {
+      const uLat = STATE.location.lat;
+      const uLon = STATE.location.lon;
+      const uName = STATE.location.name || "Live Location";
+      const uTemp = (STATE.weather && STATE.weather.temp_c !== undefined) ? `${STATE.weather.temp_c}°C` : "";
+      const uAqi = (STATE.aqi && STATE.aqi.value !== undefined) ? ` • NAQI ${STATE.aqi.value} (${STATE.aqi.tier})` : "";
+
+      const userGpsIcon = L.divIcon({
+        className: 'user-gps-marker',
+        html: `<div class="user-gps-beacon"><span class="gps-pulse"></span><span class="gps-pin-dot">📍</span></div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
+      L.marker([uLat, uLon], { icon: userGpsIcon, zIndexOffset: 1200 })
+        .bindPopup(`<strong>📍 Monitored Location</strong><br>${uName}<br>Live: ${uTemp}${uAqi}`)
+        .addTo(layer);
+    }
   });
 }
 
 function recenterAlertsMap() {
   if (alertsLeafletMap) {
-    alertsLeafletMap.flyTo([12.9716, 77.5946], 11, { duration: 1.0 });
-    showToast("📍 Map recentered on Bengaluru convective radar");
+    const lat = (STATE && STATE.location) ? STATE.location.lat : 12.9716;
+    const lon = (STATE && STATE.location) ? STATE.location.lon : 77.5946;
+    alertsLeafletMap.flyTo([lat, lon], 12, { duration: 1.0 });
+    showToast(`📍 Map recentered on ${STATE && STATE.location ? STATE.location.name : 'Radar'}`);
   }
 }
 
 function recenterSingleMap() {
   if (singleAlertsLeafletMap) {
-    singleAlertsLeafletMap.flyTo([12.9716, 77.5946], 11, { duration: 1.0 });
-    showToast("📍 Mobile map recentered");
+    const lat = (STATE && STATE.location) ? STATE.location.lat : 12.9716;
+    const lon = (STATE && STATE.location) ? STATE.location.lon : 77.5946;
+    singleAlertsLeafletMap.flyTo([lat, lon], 12, { duration: 1.0 });
+    showToast(`📍 Mobile radar map recentered on ${STATE && STATE.location ? STATE.location.name : 'Radar'}`);
   }
 }
 
 function recenterDesktopMap() {
   if (desktopLeafletMap) {
-    desktopLeafletMap.flyTo([12.9716, 77.5946], 11, { duration: 1.0 });
-    showToast("📍 Desktop radar map recentered on Bengaluru");
+    const lat = (STATE && STATE.location) ? STATE.location.lat : 12.9716;
+    const lon = (STATE && STATE.location) ? STATE.location.lon : 77.5946;
+    desktopLeafletMap.flyTo([lat, lon], 12, { duration: 1.0 });
+    showToast(`📍 Desktop radar map recentered on ${STATE && STATE.location ? STATE.location.name : 'Radar'}`);
   }
 }
 
@@ -1047,28 +1160,230 @@ async function toggleStorm() {
   }
 }
 
+let isGpsTracking = false;
+let gpsWatchId = null;
+let liveUpdateTimer = null;
+
+function setupGpsButtons() {
+  const btnDetect = document.getElementById("btnDetectGps");
+  if (btnDetect) {
+    btnDetect.addEventListener("click", () => detectUserLocation(false));
+  }
+
+  const btnTrack = document.getElementById("btnTrackGps");
+  if (btnTrack) {
+    btnTrack.addEventListener("click", toggleLiveLocationTracking);
+  }
+}
+
+async function detectUserLocation(silent = false) {
+  if (!navigator.geolocation) {
+    showToast("⚠️ Geolocation is not supported by your browser.");
+    return;
+  }
+
+  if (!silent) {
+    showToast("📍 Requesting high-precision GPS position from device...");
+  }
+
+  const btnDetect = document.getElementById("btnDetectGps");
+  if (btnDetect) btnDetect.classList.add("loading-pulse");
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      if (btnDetect) btnDetect.classList.remove("loading-pulse");
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const accuracy = pos.coords.accuracy;
+
+      if (!silent) {
+        showToast(`📍 GPS lock: ${lat.toFixed(4)}°, ${lon.toFixed(4)}° (±${Math.round(accuracy)}m). Geocoding...`);
+      }
+
+      await applyNewCoordinates(lat, lon, accuracy);
+    },
+    (err) => {
+      if (btnDetect) btnDetect.classList.remove("loading-pulse");
+      console.warn("Geolocation error:", err);
+      let msg = "Could not acquire location.";
+      if (err.code === 1) msg = "Location permission denied. Please allow location access in your browser.";
+      else if (err.code === 2) msg = "GPS position unavailable. Check device location services.";
+      else if (err.code === 3) msg = "Location request timed out.";
+      showToast(`⚠️ ${msg}`);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 0,
+    }
+  );
+}
+
+async function applyNewCoordinates(lat, lon, accuracy = null) {
+  try {
+    // 1. Reverse geocode via backend
+    let locName = `GPS Location (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)`;
+    let district = "Local District";
+
+    try {
+      const geoRes = await fetch(`/api/reverse_geocode?lat=${lat}&lon=${lon}`);
+      const geoData = await geoRes.json();
+      if (geoData.ok && geoData.name) {
+        locName = geoData.name;
+        district = geoData.district || district;
+      }
+    } catch (e) {
+      console.warn("Reverse geocode fallback:", e);
+    }
+
+    // 2. Add or update option in dropdown
+    const sel = document.getElementById("locationSelect");
+    if (sel) {
+      let opt = document.getElementById("optCurrentGps");
+      if (!opt) {
+        opt = document.createElement("option");
+        opt.id = "optCurrentGps";
+        sel.insertBefore(opt, sel.firstChild);
+      }
+      opt.value = locName;
+      opt.dataset.lat = lat;
+      opt.dataset.lon = lon;
+      opt.textContent = `📍 ${locName}`;
+      sel.value = locName;
+    }
+
+    // 3. Update backend state & pull real-time weather & NAQI
+    const res = await fetch("/api/location", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: locName, lat, lon, district, fetch_live: true }),
+    });
+    const data = await res.json();
+    if (data.ok && data.state) {
+      STATE = data.state;
+      renderAllViews();
+    } else {
+      await syncLiveWeather(lat, lon);
+    }
+
+    // 4. Smoothly Pan Leaflet Maps
+    [alertsLeafletMap, singleAlertsLeafletMap, desktopLeafletMap].forEach(m => {
+      if (m) m.flyTo([lat, lon], 12, { duration: 1.2 });
+    });
+
+    const accStr = accuracy ? ` (±${Math.round(accuracy)}m)` : "";
+    showToast(`✅ Live weather & NAQI updated for ${locName}${accStr}`);
+  } catch (err) {
+    console.error("Failed to apply new coordinates:", err);
+    showToast("⚠️ Could not synchronize live weather for your location.");
+  }
+}
+
+function toggleLiveLocationTracking() {
+  const btnTrack = document.getElementById("btnTrackGps");
+  const txt = document.getElementById("trackGpsText");
+
+  if (!navigator.geolocation) {
+    showToast("⚠️ Geolocation not supported in this browser.");
+    return;
+  }
+
+  isGpsTracking = !isGpsTracking;
+
+  if (isGpsTracking) {
+    // Start tracking
+    if (btnTrack) btnTrack.classList.add("tracking-active");
+    if (txt) txt.textContent = "Live GPS: ON";
+    showToast("🛰️ Continuous Live GPS Tracking & Weather Updates: ACTIVE");
+
+    detectUserLocation(true);
+
+    gpsWatchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        // Check if moved significantly (> 150m)
+        if (STATE && STATE.location) {
+          const dLat = Math.abs(lat - STATE.location.lat);
+          const dLon = Math.abs(lon - STATE.location.lon);
+          if (dLat > 0.0015 || dLon > 0.0015) {
+            applyNewCoordinates(lat, lon, pos.coords.accuracy);
+          }
+        }
+      },
+      (err) => console.warn("Watch position error:", err),
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 10000 }
+    );
+
+    // Periodic weather refresh every 60s while tracking
+    if (liveUpdateTimer) clearInterval(liveUpdateTimer);
+    liveUpdateTimer = setInterval(() => {
+      if (isGpsTracking && STATE && STATE.location) {
+        syncLiveWeather(STATE.location.lat, STATE.location.lon);
+      }
+    }, 60000);
+  } else {
+    // Stop tracking
+    if (gpsWatchId !== null) {
+      navigator.geolocation.clearWatch(gpsWatchId);
+      gpsWatchId = null;
+    }
+    if (liveUpdateTimer) {
+      clearInterval(liveUpdateTimer);
+      liveUpdateTimer = null;
+    }
+    if (btnTrack) btnTrack.classList.remove("tracking-active");
+    if (txt) txt.textContent = "Live GPS: OFF";
+    showToast("⏸️ Live GPS Tracking Paused");
+  }
+}
+
+async function syncLiveWeather(lat, lon) {
+  const targetLat = lat !== undefined ? lat : (STATE ? STATE.location.lat : 12.933);
+  const targetLon = lon !== undefined ? lon : (STATE ? STATE.location.lon : 77.625);
+
+  try {
+    const res = await fetch(`/api/weather/live?lat=${targetLat}&lon=${targetLon}`);
+    const data = await res.json();
+    if (data.ok && data.state) {
+      STATE = data.state;
+      renderAllViews();
+    }
+  } catch (err) {
+    console.error("Live sync failed:", err);
+  }
+}
+
 function setupLocationSelector() {
   const sel = document.getElementById("locationSelect");
+  if (!sel) return;
   sel.addEventListener("change", async () => {
     const opt = sel.options[sel.selectedIndex];
     const name = opt.value;
     const lat = parseFloat(opt.dataset.lat);
     const lon = parseFloat(opt.dataset.lon);
 
+    showToast(`📍 Loading live Open-Meteo & NAQI for ${name}...`);
+
     try {
-      await fetch("/api/location", {
+      const res = await fetch("/api/location", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, lat, lon }),
+        body: JSON.stringify({ name, lat, lon, fetch_live: true }),
       });
-      STATE.location = { name, lat, lon };
+      const data = await res.json();
+      if (data.ok && data.state) {
+        STATE = data.state;
+      } else {
+        STATE.location = { name, lat, lon };
+      }
       renderAllViews();
 
-      if (alertsLeafletMap) alertsLeafletMap.panTo([lat, lon]);
-      if (singleAlertsLeafletMap) singleAlertsLeafletMap.panTo([lat, lon]);
-      if (desktopLeafletMap) desktopLeafletMap.panTo([lat, lon]);
+      if (alertsLeafletMap) alertsLeafletMap.flyTo([lat, lon], 12, { duration: 1.0 });
+      if (singleAlertsLeafletMap) singleAlertsLeafletMap.flyTo([lat, lon], 12, { duration: 1.0 });
+      if (desktopLeafletMap) desktopLeafletMap.flyTo([lat, lon], 12, { duration: 1.0 });
 
-      showToast(`📍 Switched location to ${name}`);
+      showToast(`📍 Switched to ${name} — live weather synced`);
     } catch (err) {
       console.error("Failed to change location:", err);
     }
@@ -1077,20 +1392,107 @@ function setupLocationSelector() {
 
 function setupSyncLiveButton() {
   const btn = document.getElementById("btnSyncLive");
+  if (!btn) return;
   btn.addEventListener("click", async () => {
-    showToast("🔄 Fetching live Open-Meteo weather data...");
+    showToast("🔄 Syncing live Open-Meteo & CAMS air quality...");
+    const lat = (STATE && STATE.location) ? STATE.location.lat : 12.933;
+    const lon = (STATE && STATE.location) ? STATE.location.lon : 77.625;
     try {
-      const res = await fetch("/api/weather/live");
+      const res = await fetch(`/api/weather/live?lat=${lat}&lon=${lon}`);
       const data = await res.json();
       if (data.ok && data.state) {
         STATE = data.state;
         renderAllViews();
-        showToast(data.live ? "✅ Live Open-Meteo weather synchronized!" : "ℹ️ Using simulated model");
+        showToast(data.live ? "✅ Real-time Open-Meteo & CAMS data synchronized!" : "ℹ️ Live sync complete");
       }
     } catch (err) {
       showToast("⚠️ Could not reach live weather API — using simulated feeds");
     }
   });
+}
+
+function openNaqiBreakdownModal() {
+  if (!STATE || !STATE.aqi) return;
+  const a = STATE.aqi;
+  const raw = a.raw_pollutants || {};
+  const subs = a.sub_indices || {};
+
+  const scoreEl = document.getElementById("nbModalScore");
+  if (scoreEl) scoreEl.textContent = a.value;
+
+  const badgeEl = document.getElementById("nbModalBadge");
+  if (badgeEl) {
+    badgeEl.textContent = a.tier;
+    const colors = {
+      "Good": { bg: "#2fae63", text: "#fff" },
+      "Satisfactory": { bg: "#f5c518", text: "#221c00" },
+      "Moderate": { bg: "#f2994a", text: "#fff" },
+      "Poor": { bg: "#eb5757", text: "#fff" },
+      "Very Poor": { bg: "#9b51e0", text: "#fff" },
+      "Severe": { bg: "#7d1c1c", text: "#fff" },
+    };
+    const c = colors[a.tier] || colors["Good"];
+    badgeEl.style.background = c.bg;
+    badgeEl.style.color = c.text;
+  }
+
+  const driverEl = document.getElementById("nbModalDriver");
+  if (driverEl) driverEl.textContent = a.prominent || "PM2.5";
+
+  const advEl = document.getElementById("nbModalAdvisory");
+  if (advEl) advEl.textContent = a.advisory || "Air quality is considered satisfactory.";
+
+  function updatePollutant(key, rawVal, unit, maxScale) {
+    const rawEl = document.getElementById(`nbVal_${key}`);
+    if (rawEl) rawEl.textContent = rawVal !== undefined ? `${rawVal} ${unit}` : "--";
+
+    const subVal = subs[key] !== undefined ? Math.round(subs[key]) : (rawVal || 0);
+    const subEl = document.getElementById(`nbSub_${key}`);
+    if (subEl) subEl.textContent = subVal;
+
+    const barEl = document.getElementById(`nbBar_${key}`);
+    if (barEl) {
+      const pct = Math.min(Math.max((subVal / maxScale) * 100, 4), 100);
+      barEl.style.width = `${pct}%`;
+      let barColor = "#2fae63";
+      if (subVal > 50) barColor = "#f5c518";
+      if (subVal > 100) barColor = "#f2994a";
+      if (subVal > 200) barColor = "#eb5757";
+      if (subVal > 300) barColor = "#9b51e0";
+      if (subVal > 400) barColor = "#7d1c1c";
+      barEl.style.background = barColor;
+    }
+
+    const tierEl = document.getElementById(`nbTier_${key}`);
+    if (tierEl) {
+      let t = "Good";
+      if (subVal > 50) t = "Satisfactory";
+      if (subVal > 100) t = "Moderate";
+      if (subVal > 200) t = "Poor";
+      if (subVal > 300) t = "Very Poor";
+      if (subVal > 400) t = "Severe";
+      tierEl.textContent = t;
+    }
+  }
+
+  updatePollutant("pm25", raw.pm25 !== undefined ? raw.pm25 : a.pm25, "µg/m³", 300);
+  updatePollutant("pm10", raw.pm10 !== undefined ? raw.pm10 : a.pm10, "µg/m³", 400);
+  updatePollutant("no2", raw.no2, "µg/m³", 250);
+  updatePollutant("so2", raw.so2, "µg/m³", 250);
+  updatePollutant("co", raw.co !== undefined ? raw.co : (raw.co_mg_m3 !== undefined ? raw.co_mg_m3 : a.co), "mg/m³", 20);
+  updatePollutant("ozone", raw.ozone !== undefined ? raw.ozone : a.ozone, "µg/m³", 200);
+
+  // Global cross indices
+  const eaqiEl = document.getElementById("nbVal_eaqi");
+  if (eaqiEl) eaqiEl.textContent = a.european_aqi ? `${a.european_aqi}` : "44 (Fair)";
+
+  const usaqiEl = document.getElementById("nbVal_usaqi");
+  if (usaqiEl) usaqiEl.textContent = a.us_aqi ? `${a.us_aqi}` : "65 (Moderate)";
+
+  const cpcbEl = document.getElementById("nbVal_cpcb");
+  if (cpcbEl) cpcbEl.textContent = `${a.value} (${a.tier})`;
+
+  openModal("modalNaqiBreakdown");
 }
 
 // ========================================================
@@ -1294,3 +1696,7 @@ window.showPesticideDetails = showPesticideDetails;
 window.showSprayingDetails = showSprayingDetails;
 window.showFrostDetails = showFrostDetails;
 window.showUserProfileEditor = showUserProfileEditor;
+window.detectUserLocation = detectUserLocation;
+window.toggleLiveLocationTracking = toggleLiveLocationTracking;
+window.openNaqiBreakdownModal = openNaqiBreakdownModal;
+window.syncLiveWeather = syncLiveWeather;

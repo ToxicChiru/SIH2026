@@ -2565,4 +2565,391 @@ body {
   color: #63a0f2 !important;
 }
 
+/* ======================================================== */
+/* GPS LOCATION ACCESS & CONTINUOUS TRACKING CONTROLS       */
+/* ======================================================== */
+.gps-btn {
+  background: rgba(59, 127, 224, 0.12) !important;
+  color: #2b70d8 !important;
+  border-color: rgba(59, 127, 224, 0.35) !important;
+  font-weight: 700 !important;
+  transition: all 0.2s ease !important;
+}
+
+.gps-btn:hover {
+  background: #3b7fe0 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(59, 127, 224, 0.3) !important;
+}
+
+.track-btn {
+  background: rgba(47, 174, 99, 0.1) !important;
+  color: #258c4f !important;
+  border-color: rgba(47, 174, 99, 0.35) !important;
+  font-weight: 700 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: all 0.25s ease !important;
+}
+
+.track-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8e9aae;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.track-btn.tracking-active {
+  background: #2fae63 !important;
+  color: #ffffff !important;
+  border-color: #269954 !important;
+  box-shadow: 0 0 14px rgba(47, 174, 99, 0.45) !important;
+}
+
+.track-btn.tracking-active .track-pulse-dot {
+  background: #ffffff !important;
+  box-shadow: 0 0 8px #ffffff;
+  animation: trackGpsPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes trackGpsPulse {
+  0% { transform: scale(0.9); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.5; }
+  100% { transform: scale(0.9); opacity: 1; }
+}
+
+.loading-pulse {
+  animation: btnLoadingPulse 1s ease-in-out infinite;
+}
+
+@keyframes btnLoadingPulse {
+  0% { opacity: 0.7; transform: scale(0.98); }
+  50% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0.7; transform: scale(0.98); }
+}
+
+/* User GPS Map Beacon */
+.user-gps-marker {
+  pointer-events: auto !important;
+}
+
+.user-gps-beacon {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.gps-pin-dot {
+  font-size: 20px;
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.4));
+}
+
+.gps-pulse {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(59, 127, 224, 0.35);
+  border: 2px solid #3b7fe0;
+  animation: gpsBeaconPulse 2s ease-out infinite;
+  z-index: 1;
+}
+
+@keyframes gpsBeaconPulse {
+  0% { transform: scale(0.6); opacity: 1; }
+  70% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* ======================================================== */
+/* WEATHER HERO & CONDITION LABELS                          */
+/* ======================================================== */
+.weather-cond-row {
+  margin: 1px 0 3px;
+}
+
+.weather-cond-text {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #3b7fe0;
+  letter-spacing: -0.2px;
+}
+
+.art-weather-ico {
+  font-size: 32px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.12));
+  display: inline-block;
+  animation: weatherFloat 4s ease-in-out infinite;
+}
+
+@keyframes weatherFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.p-cond {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3b7fe0;
+  margin-top: 2px;
+}
+
+.source-live-chip {
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(47, 174, 99, 0.12);
+  color: #1e8749;
+  border: 1px solid rgba(47, 174, 99, 0.3);
+  padding: 3px 8px;
+  border-radius: 12px;
+  letter-spacing: 0.2px;
+}
+
+/* ======================================================== */
+/* INTERACTIVE NAQI CARDS & DRIVER CHIP                     */
+/* ======================================================== */
+.naqi-box-clickable {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.naqi-box-clickable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(59, 127, 224, 0.18);
+}
+
+.naqi-driver-chip {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #55627a;
+  background: #edf2fa;
+  padding: 2px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.1px;
+}
+
+.naqi-tap-hint {
+  font-size: 9.5px;
+  color: #3b7fe0;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.clickable-portal-card {
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.clickable-portal-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.portal-link-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3b7fe0;
+}
+
+/* ======================================================== */
+/* CPCB NAQI 6-POLLUTANT DETAILED BREAKDOWN MODAL           */
+/* ======================================================== */
+.naqi-modal-body {
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.naqi-breakdown-hero {
+  display: flex;
+  gap: 20px;
+  background: linear-gradient(135deg, #f8faff 0%, #eef4fe 100%);
+  border: 1px solid #d8e5fa;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.nb-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+  border-right: 1px solid rgba(59, 127, 224, 0.18);
+  padding-right: 18px;
+}
+
+.nb-score-lbl {
+  font-size: 10px;
+  font-weight: 800;
+  color: #55627a;
+  letter-spacing: 0.5px;
+}
+
+.nb-score-val {
+  font-size: 46px;
+  font-weight: 800;
+  color: #12151c;
+  line-height: 1.1;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.nb-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.nb-driver-pill {
+  font-size: 12px;
+  color: #334155;
+}
+
+.nb-driver-pill strong {
+  color: #1e3a8a;
+}
+
+.nb-advisory {
+  font-size: 12.5px;
+  color: #1e293b;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.nb-source-tag {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.pollutants-section-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin: 16px 0 12px;
+}
+
+.pollutants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pollutant-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.pollutant-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.p-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.p-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.p-raw {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.p-progress-track {
+  width: 100%;
+  height: 7px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.p-progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: #2fae63;
+  transition: width 0.4s ease, background-color 0.3s ease;
+}
+
+.p-card-bot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.p-tier-chip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.cross-index-banner {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+}
+
+.ci-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.ci-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ci-item {
+  font-size: 12px;
+  color: #334155;
+}
+
+.ci-item strong {
+  color: #0f172a;
+  margin-left: 4px;
+}
+
+
 

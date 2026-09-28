@@ -50,7 +50,12 @@
 
 ## 🚀 Quickstart
 
-### Running with Python (Fastest)
+### 1-Click Windows Launcher (Easiest)
+
+Simply double-click **`run_app.bat`** in the root project folder (or run it via Command Prompt).  
+It will automatically check your Python environment, install any missing dependencies, start the background simulation & server, and launch **`http://localhost:8000`** in your default web browser!
+
+### Running with Python (Manual)
 
 ```bash
 cd mausam-deploy

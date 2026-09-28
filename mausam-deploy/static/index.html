@@ -59,6 +59,15 @@
         <option value="Mumbai, Maharashtra" data-lat="19.076" data-lon="72.877">🌊 Mumbai Coastal</option>
       </select>
 
+      <button class="action-btn gps-btn" id="btnDetectGps" title="Detect Current GPS Location via Browser Geolocation">
+        <span>📍</span> GPS
+      </button>
+
+      <button class="action-btn track-btn" id="btnTrackGps" title="Toggle Continuous Live GPS Tracking">
+        <span class="track-pulse-dot"></span>
+        <span id="trackGpsText">Live GPS: OFF</span>
+      </button>
+
       <button class="action-btn storm-btn" id="btnToggleStorm" title="Toggle Red Convective Storm Alert Simulation">
         <span>⚡</span> <span id="stormBtnText">Storm: Active</span>
       </button>
@@ -67,7 +76,7 @@
         <span>✨</span> Onboarding
       </button>
 
-      <button class="action-btn live-sync-btn" id="btnSyncLive" title="Fetch live Open-Meteo weather for current coordinates">
+      <button class="action-btn live-sync-btn" id="btnSyncLive" title="Fetch live Open-Meteo & CAMS Air Quality for current coordinates">
         <span>🔄</span> Sync Live
       </button>
 
@@ -115,12 +124,13 @@
             <!-- Home Screen Content -->
             <div class="phone-screen screen-home">
               <!-- NAQI Card -->
-              <div class="naqi-box">
+              <div class="naqi-box naqi-box-clickable" onclick="openNaqiBreakdownModal()" title="View CPCB 6-Pollutant Sub-Index Breakdown">
                 <div class="naqi-header-row">
                   <span class="naqi-lbl">NAQI</span>
+                  <span class="naqi-driver-chip" id="homeNaqiDriver">PM2.5 Dominant</span>
                 </div>
                 <div class="naqi-main-row">
-                  <span class="naqi-big" id="homeNaqiVal">68</span>
+                  <span class="naqi-big" id="homeNaqiVal">41</span>
                   <div class="naqi-scale-container">
                     <div class="naqi-scale-track">
                       <div class="naqi-pointer" id="homeNaqiPointer" style="left: 36%;">▼</div>
@@ -138,21 +148,24 @@
                   </div>
                 </div>
                 <div class="naqi-badge-row">
-                  <span class="naqi-badge badge-sat" id="homeNaqiBadge">Satisfactory</span>
+                  <span class="naqi-badge badge-sat" id="homeNaqiBadge">Good</span>
+                  <span class="naqi-tap-hint">Breakdown ›</span>
                 </div>
               </div>
 
               <!-- Weather Hero -->
               <div class="weather-hero">
                 <div class="weather-temp-row">
-                  <span class="temp-big" id="homeTemp">29°C</span>
+                  <span class="temp-big" id="homeTemp">--°C</span>
                   <div class="weather-art">
-                    <span class="art-sun">☀️</span>
-                    <span class="art-cloud">⛅</span>
+                    <span class="art-weather-ico" id="homeWeatherIcon">⏳</span>
                   </div>
                 </div>
+                <div class="weather-cond-row">
+                  <span class="weather-cond-text" id="homeWeatherCond">Syncing live weather...</span>
+                </div>
                 <div class="weather-loc-row">
-                  <span class="weather-loc-text" id="homeLoc">Agara, Bengaluru, India</span>
+                  <span class="weather-loc-text" id="homeLoc">Detecting location...</span>
                 </div>
               </div>
 
@@ -699,10 +712,13 @@
 
           <!-- TAB 1: HOME -->
           <div id="sTab_home" class="phone-screen screen-home">
-            <div class="naqi-box">
-              <div class="naqi-header-row"><span class="naqi-lbl">NAQI</span></div>
+            <div class="naqi-box naqi-box-clickable" onclick="openNaqiBreakdownModal()" title="View CPCB 6-Pollutant Sub-Index Breakdown">
+              <div class="naqi-header-row">
+                <span class="naqi-lbl">NAQI</span>
+                <span class="naqi-driver-chip" id="sHomeNaqiDriver">PM2.5 Dominant</span>
+              </div>
               <div class="naqi-main-row">
-                <span class="naqi-big" id="sHomeNaqiVal">68</span>
+                <span class="naqi-big" id="sHomeNaqiVal">41</span>
                 <div class="naqi-scale-container">
                   <div class="naqi-scale-track">
                     <div class="naqi-pointer" id="sHomeNaqiPointer" style="left: 36%;">▼</div>
@@ -717,17 +733,21 @@
                 </div>
               </div>
               <div class="naqi-badge-row">
-                <span class="naqi-badge badge-sat" id="sHomeNaqiBadge">Satisfactory</span>
+                <span class="naqi-badge badge-sat" id="sHomeNaqiBadge">Good</span>
+                <span class="naqi-tap-hint">Breakdown ›</span>
               </div>
             </div>
 
             <div class="weather-hero">
               <div class="weather-temp-row">
-                <span class="temp-big" id="sHomeTemp">29°C</span>
-                <div class="weather-art"><span class="art-sun">☀️</span><span class="art-cloud">⛅</span></div>
+                <span class="temp-big" id="sHomeTemp">--°C</span>
+                <div class="weather-art"><span class="art-weather-ico" id="sHomeWeatherIcon">⏳</span></div>
+              </div>
+              <div class="weather-cond-row">
+                <span class="weather-cond-text" id="sHomeWeatherCond">Syncing live weather...</span>
               </div>
               <div class="weather-loc-row">
-                <span class="weather-loc-text" id="sHomeLoc">Agara, Bengaluru, India</span>
+                <span class="weather-loc-text" id="sHomeLoc">Detecting location...</span>
               </div>
             </div>
 
@@ -977,29 +997,36 @@
         <!-- Col 1: Weather & Health -->
         <div class="portal-col col-weather">
           <div class="portal-card hero-card">
-            <div class="p-card-head">Current Atmospheric State</div>
+            <div class="p-card-head flex-between">
+              <span>Current Atmospheric State</span>
+              <span class="source-live-chip" id="dtSourceChip">📡 Open-Meteo Live</span>
+            </div>
             <div class="hero-top-flex">
               <div>
-                <div class="p-temp" id="dtTemp">29°C</div>
-                <div class="p-loc" id="dtLoc">Agara, Bengaluru, India</div>
+                <div class="p-temp" id="dtTemp">--°C</div>
+                <div class="p-cond" id="dtWeatherCond">Syncing live weather...</div>
+                <div class="p-loc" id="dtLoc">Detecting location...</div>
               </div>
-              <div class="p-art">⛅</div>
+              <div class="p-art" id="dtWeatherIcon">⏳</div>
             </div>
             <div class="p-metrics-bar">
-              <div class="pm-item"><span>Humidity</span><strong id="dtHumidity">72%</strong></div>
-              <div class="pm-item"><span>Wind</span><strong id="dtWind">8.5 km/h</strong></div>
-              <div class="pm-item"><span>Visibility</span><strong id="dtVis">4.8 km</strong></div>
+              <div class="pm-item"><span>Humidity</span><strong id="dtHumidity">54%</strong></div>
+              <div class="pm-item"><span>Wind</span><strong id="dtWind">8.3 km/h NNW</strong></div>
+              <div class="pm-item"><span>Visibility</span><strong id="dtVis">6.0 km</strong></div>
               <div class="pm-item"><span>UV Index</span><strong id="dtUv">5 (Mod)</strong></div>
             </div>
           </div>
 
-          <div class="portal-card naqi-dash-card">
-            <div class="p-card-head">National Air Quality Index (NAQI)</div>
+          <div class="portal-card naqi-dash-card clickable-portal-card" onclick="openNaqiBreakdownModal()" title="Click to view 6-Pollutant CPCB Sub-Index Breakdown">
+            <div class="p-card-head flex-between">
+              <span>National Air Quality Index (NAQI)</span>
+              <span class="portal-link-hint">CPCB Breakdown ›</span>
+            </div>
             <div class="naqi-split">
-              <div class="naqi-hero-num" id="dtNaqiVal">68</div>
+              <div class="naqi-hero-num" id="dtNaqiVal">41</div>
               <div>
-                <span class="naqi-badge badge-sat" id="dtNaqiBadge">Satisfactory</span>
-                <div class="dt-naqi-sub">Primary driver: PM2.5 (42 µg/m³)</div>
+                <span class="naqi-badge badge-sat" id="dtNaqiBadge">Good</span>
+                <div class="dt-naqi-sub" id="dtNaqiDriver">Primary driver: Ozone (O3)</div>
               </div>
             </div>
           </div>
@@ -1339,6 +1366,152 @@
           <span>🟢 Optimal Root Hydration</span>
         </div>
         <button type="button" class="cancel-modal-btn" onclick="closeModal('modalHeatmap')" style="width:100%;margin-top:16px;">Close Heatmap</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CPCB NAQI 6-POLLUTANT DETAILED BREAKDOWN MODAL -->
+  <div id="modalNaqiBreakdown" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'modalNaqiBreakdown')">
+    <div class="modal-dialog modal-wide">
+      <div class="modal-header-bar">
+        <div class="modal-title-wrap">
+          <span class="modal-brand-badge">🇮🇳 CPCB NAQI Standard</span>
+          <span class="modal-subtitle">Real-Time Central Pollution Control Board Air Quality Intelligence</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('modalNaqiBreakdown')" title="Close (or press Esc)" aria-label="Close modal">✕</button>
+      </div>
+      <div class="dialog-content naqi-modal-body">
+        <!-- Hero Banner with NAQI score & advisory -->
+        <div class="naqi-breakdown-hero" id="naqiModalHero">
+          <div class="nb-left">
+            <div class="nb-score-lbl">COMPOSITE NAQI</div>
+            <div class="nb-score-val" id="nbModalScore">41</div>
+            <span class="naqi-badge badge-sat" id="nbModalBadge">Good</span>
+          </div>
+          <div class="nb-right">
+            <div class="nb-driver-pill">
+              <span class="nb-pill-lbl">Primary Driver:</span>
+              <strong id="nbModalDriver">Ozone (O3)</strong>
+            </div>
+            <div class="nb-advisory" id="nbModalAdvisory">Minimal impact. Air quality is considered satisfactory, and air pollution poses little or no risk.</div>
+            <div class="nb-source-tag">📡 Live Source: Copernicus Atmosphere Monitoring Service (CAMS) & Open-Meteo Air Quality</div>
+          </div>
+        </div>
+
+        <!-- 6 CPCB Pollutants Sub-Index Grid -->
+        <div class="pollutants-section-title">CPCB 6-Pollutant Sub-Index Breakdown</div>
+        <div class="pollutants-grid">
+          <!-- PM2.5 -->
+          <div class="pollutant-card">
+            <div class="p-card-top">
+              <span class="p-name">PM2.5 (Fine Dust)</span>
+              <span class="p-raw" id="nbVal_pm25">21.7 µg/m³</span>
+            </div>
+            <div class="p-progress-track">
+              <div class="p-progress-fill" id="nbBar_pm25" style="width: 36%;"></div>
+            </div>
+            <div class="p-card-bot">
+              <span>Sub-Index: <strong id="nbSub_pm25">36</strong></span>
+              <span class="p-tier-chip" id="nbTier_pm25">Good</span>
+            </div>
+          </div>
+
+          <!-- PM10 -->
+          <div class="pollutant-card">
+            <div class="p-card-top">
+              <span class="p-name">PM10 (Coarse Dust)</span>
+              <span class="p-raw" id="nbVal_pm10">30.3 µg/m³</span>
+            </div>
+            <div class="p-progress-track">
+              <div class="p-progress-fill" id="nbBar_pm10" style="width: 30%;"></div>
+            </div>
+            <div class="p-card-bot">
+              <span>Sub-Index: <strong id="nbSub_pm10">30</strong></span>
+              <span class="p-tier-chip" id="nbTier_pm10">Good</span>
+            </div>
+          </div>
+
+          <!-- NO2 -->
+          <div class="pollutant-card">
+            <div class="p-card-top">
+              <span class="p-name">NO₂ (Nitrogen Dioxide)</span>
+              <span class="p-raw" id="nbVal_no2">32.1 µg/m³</span>
+            </div>
+            <div class="p-progress-track">
+              <div class="p-progress-fill" id="nbBar_no2" style="width: 40%;"></div>
+            </div>
+            <div class="p-card-bot">
+              <span>Sub-Index: <strong id="nbSub_no2">40</strong></span>
+              <span class="p-tier-chip" id="nbTier_no2">Good</span>
+            </div>
+          </div>
+
+          <!-- SO2 -->
+          <div class="pollutant-card">
+            <div class="p-card-top">
+              <span class="p-name">SO₂ (Sulphur Dioxide)</span>
+              <span class="p-raw" id="nbVal_so2">7.9 µg/m³</span>
+            </div>
+            <div class="p-progress-track">
+              <div class="p-progress-fill" id="nbBar_so2" style="width: 10%;"></div>
+            </div>
+            <div class="p-card-bot">
+              <span>Sub-Index: <strong id="nbSub_so2">10</strong></span>
+              <span class="p-tier-chip" id="nbTier_so2">Good</span>
+            </div>
+          </div>
+
+          <!-- CO -->
+          <div class="pollutant-card">
+            <div class="p-card-top">
+              <span class="p-name">CO (Carbon Monoxide)</span>
+              <span class="p-raw" id="nbVal_co">0.53 mg/m³</span>
+            </div>
+            <div class="p-progress-track">
+              <div class="p-progress-fill" id="nbBar_co" style="width: 26%;"></div>
+            </div>
+            <div class="p-card-bot">
+              <span>Sub-Index: <strong id="nbSub_co">26</strong></span>
+              <span class="p-tier-chip" id="nbTier_co">Good</span>
+            </div>
+          </div>
+
+          <!-- Ozone (O3) -->
+          <div class="pollutant-card">
+            <div class="p-card-top">
+              <span class="p-name">O₃ (Ground Ozone)</span>
+              <span class="p-raw" id="nbVal_ozone">41.0 µg/m³</span>
+            </div>
+            <div class="p-progress-track">
+              <div class="p-progress-fill" id="nbBar_ozone" style="width: 41%;"></div>
+            </div>
+            <div class="p-card-bot">
+              <span>Sub-Index: <strong id="nbSub_ozone">41</strong></span>
+              <span class="p-tier-chip" id="nbTier_ozone">Good</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Global Cross-Index Comparison -->
+        <div class="cross-index-banner">
+          <div class="ci-title">Global Standards Comparison</div>
+          <div class="ci-items">
+            <div class="ci-item">
+              <span>European AQI (EAQI):</span>
+              <strong id="nbVal_eaqi">44 (Fair)</strong>
+            </div>
+            <div class="ci-item">
+              <span>US EPA AQI:</span>
+              <strong id="nbVal_usaqi">65 (Moderate)</strong>
+            </div>
+            <div class="ci-item">
+              <span>Indian CPCB NAQI:</span>
+              <strong id="nbVal_cpcb">41 (Good)</strong>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="cancel-modal-btn" onclick="closeModal('modalNaqiBreakdown')" style="width:100%;margin-top:16px;">Close Breakdown</button>
       </div>
     </div>
   </div>
