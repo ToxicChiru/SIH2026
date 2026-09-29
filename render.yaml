@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: mausam-weather-app
+    runtime: docker
+    dockerfilePath: ./mausam-deploy/Dockerfile
+    dockerContext: ./mausam-deploy
+    plan: free
+    region: singapore
+    envVars:
+      - key: PORT
+        value: 8000

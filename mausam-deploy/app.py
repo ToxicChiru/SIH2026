@@ -363,4 +363,6 @@ mock_feeds.init_live_data()
 mock_feeds.start_background_loop(interval_sec=4.0)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, threaded=True, debug=False)
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host="0.0.0.0", port=port, threaded=True, debug=False)
